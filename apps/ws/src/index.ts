@@ -1,4 +1,4 @@
-
+//@ts-ignore
 import { WebSocketServer } from "ws";
 import { GameManager } from "./GameManager";
 
@@ -21,6 +21,5 @@ wss.on('connection',(ws:any)=>{
 
 
 
-})
-
+});
 
