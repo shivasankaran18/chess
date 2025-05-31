@@ -1,103 +1,203 @@
-import Image from "next/image";
+"use client";
+import { Button } from "@/components/ui/button";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { motion } from "framer-motion";
+import { ChessLogo } from "@/components/ChessLogo";
+import { ChessPieces } from "@/components/ChessPieces";
+import { useRouter } from "next/navigation";
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+export default function LandingPage() {
+   const { theme, setTheme } = useTheme();
+   const router = useRouter();
+   const features = [
+      {
+         title: "Real-time Matches",
+         description: "Play chess in real-time with players worldwide",
+      },
+      {
+         title: "AI Analysis",
+         description: "Get instant game analysis from our advanced AI",
+      },
+      {
+         title: "Tournament System",
+         description: "Join daily tournaments and win prizes",
+      },
+      {
+         title: "Learning Resources",
+         description: "Access comprehensive chess tutorials and strategies",
+      },
+   ];
+
+   return (
+      <div className="min-h-screen bg-background">
+         <nav className="fixed w-full top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
+            <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+               <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center gap-2"
+               >
+                  <ChessLogo className="w-8 h-8" />
+                  <span className="text-xl font-bold">ChessMaster</span>
+               </motion.div>
+
+               <div className="flex items-center gap-4">
+                  <Button
+                     variant="outline"
+                     size="icon"
+                     onClick={() =>
+                        setTheme(theme === "dark" ? "light" : "dark")
+                     }
+                  >
+                     {theme === "dark" ? (
+                        <Sun className="h-5 w-5" />
+                     ) : (
+                        <Moon className="h-5 w-5" />
+                     )}
+                  </Button>
+                  <motion.div
+                     whileHover={{ scale: 1.05 }}
+                     whileTap={{ scale: 0.95 }}
+                  >
+                     <Button
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() => router.push("/signin")}
+                     >
+                        Sign In
+                     </Button>
+                  </motion.div>
+               </div>
+            </div>
+         </nav>
+
+         <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+            <div className="absolute inset-0 opacity-10">
+               <div className="w-full h-full grid grid-cols-8 grid-rows-8">
+                  {Array.from({ length: 64 }).map((_, i) => {
+                     const row = Math.floor(i / 8);
+                     const col = i % 8;
+                     const isEven = (row + col) % 2 === 0;
+                     return (
+                        <div
+                           key={i}
+                           className={`${isEven ? "bg-emerald-800" : "bg-background"}`}
+                        ></div>
+                     );
+                  })}
+               </div>
+            </div>
+
+            <ChessPieces />
+
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.1)_0,transparent_70%)]" />
+
+            <div className="container mx-auto px-4 relative z-10">
+               <div className="max-w-4xl mx-auto text-center">
+                  <motion.div
+                     initial={{ scale: 0.8, opacity: 0 }}
+                     animate={{ scale: 1, opacity: 1 }}
+                     transition={{ duration: 0.6 }}
+                     className="mb-8"
+                  >
+                     <ChessLogo className="w-24 h-24 mx-auto" />
+                  </motion.div>
+                  <motion.h1
+                     initial={{ y: 20, opacity: 0 }}
+                     animate={{ y: 0, opacity: 1 }}
+                     transition={{ delay: 0.2 }}
+                     className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-emerald-600"
+                  >
+                     Master the Game of Kings
+                  </motion.h1>
+                  <motion.p
+                     initial={{ y: 20, opacity: 0 }}
+                     animate={{ y: 0, opacity: 1 }}
+                     transition={{ delay: 0.3 }}
+                     className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
+                  >
+                     Join millions of players worldwide in the ultimate online
+                     chess experience. Play, learn, and compete in tournaments.
+                  </motion.p>
+                  <motion.div
+                     initial={{ y: 20, opacity: 0 }}
+                     animate={{ y: 0, opacity: 1 }}
+                     transition={{ delay: 0.4 }}
+                     className="flex flex-col sm:flex-row gap-4 justify-center"
+                  >
+                     <Button
+                        size="lg"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-lg"
+                     >
+                        Play Now
+                     </Button>
+                     <Button size="lg" variant="outline" className="text-lg">
+                        Learn More
+                     </Button>
+                  </motion.div>
+               </div>
+            </div>
+         </section>
+
+         <section className="py-16 px-4 bg-muted/30">
+            <div className="container mx-auto">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                  {features.map((feature, index) => (
+                     <motion.div
+                        key={index}
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.2 + index * 0.1 }}
+                        whileHover={{ scale: 1.02 }}
+                        className="p-6 rounded-lg bg-card border hover:border-emerald-500/50 transition-colors"
+                     >
+                        <h3 className="text-xl font-semibold mb-3">
+                           {feature.title}
+                        </h3>
+                        <p className="text-muted-foreground">
+                           {feature.description}
+                        </p>
+                     </motion.div>
+                  ))}
+               </div>
+            </div>
+         </section>
+
+         <section className="py-16 px-4 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.1)_0,transparent_70%)]" />
+            <div className="container mx-auto relative z-10">
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                  {[
+                     { number: "1M+", label: "Active Players" },
+                     { number: "10M+", label: "Games Played" },
+                     { number: "50K+", label: "Daily Tournaments" },
+                  ].map((stat, index) => (
+                     <motion.div
+                        key={index}
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.2 + index * 0.1 }}
+                        whileHover={{ y: -5 }}
+                        className="p-6 rounded-lg bg-card/50 backdrop-blur-sm border"
+                     >
+                        <div className="text-4xl font-bold text-emerald-500 mb-2">
+                           {stat.number}
+                        </div>
+                        <div className="text-muted-foreground">
+                           {stat.label}
+                        </div>
+                     </motion.div>
+                  ))}
+               </div>
+            </div>
+         </section>
+
+         <footer className="py-8 px-4 border-t">
+            <div className="container mx-auto text-center text-sm text-muted-foreground">
+               <p>Made with ♟️ by Shiva for the chess community</p>
+            </div>
+         </footer>
+      </div>
+   );
 }
