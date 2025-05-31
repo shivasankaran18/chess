@@ -36,12 +36,12 @@ export const authOptions = {
             user.id = res.id;
             return true;
          }
-
          const newUser = await prisma.user.create({
             data: {
                email: user.email,
                name: user.name,
                provider: "GOOGLE",
+               avatarUrl:user.image || "",
             },
          });
          user.id = newUser.id;

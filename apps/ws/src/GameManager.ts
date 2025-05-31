@@ -1,4 +1,4 @@
-import { GAME_START } from "./constants";
+import { GAME_START } from "types"; 
 import { Game } from "./Game";
 import { WebSocket } from "ws";
 

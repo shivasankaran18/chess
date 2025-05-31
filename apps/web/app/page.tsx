@@ -1,12 +1,11 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
 import { ChessLogo } from "@/components/ChessLogo";
 import { ChessPieces } from "@/components/ChessPieces";
 import { useRouter } from "next/navigation";
-
+import { ModeToggle } from "@/components/ModeToggle";
 
 export default function LandingPage() {
    const { theme, setTheme } = useTheme();
@@ -44,19 +43,7 @@ export default function LandingPage() {
                </motion.div>
 
                <div className="flex items-center gap-4">
-                  <Button
-                     variant="outline"
-                     size="icon"
-                     onClick={() =>
-                        setTheme(theme === "dark" ? "light" : "dark")
-                     }
-                  >
-                     {theme === "dark" ? (
-                        <Sun className="h-5 w-5" />
-                     ) : (
-                        <Moon className="h-5 w-5" />
-                     )}
-                  </Button>
+                  <ModeToggle theme={theme || ""} setTheme={setTheme} />
                   <motion.div
                      whileHover={{ scale: 1.05 }}
                      whileTap={{ scale: 0.95 }}

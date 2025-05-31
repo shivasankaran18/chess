@@ -8,6 +8,7 @@ import { Moon, Sun } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { ModeToggle } from "@/components/ModeToggle";
 
 export default function SignIn() {
    const { theme, setTheme } = useTheme();
@@ -79,20 +80,7 @@ export default function SignIn() {
             transition={{ duration: 0.5 }}
          >
             {JSON.stringify(session?.user)}
-            <Button
-               variant="outline"
-               size="icon"
-               className="absolute top-4 right-4"
-               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            >
-               {theme === "dark" ? (
-                  <Sun className="h-5 w-5" />
-               ) : (
-                  <Moon className="h-5 w-5" />
-               )}
-               <span className="sr-only">Toggle theme</span>
-            </Button>
-
+            <ModeToggle theme={theme || ""} setTheme={setTheme} />
             <div className="w-full max-w-md space-y-8">
                <motion.div
                   initial={{ y: 10, opacity: 0 }}

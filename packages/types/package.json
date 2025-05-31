@@ -1,5 +1,5 @@
 {
-  "name": "db",
+  "name": "types",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -9,11 +9,5 @@
   "author": "",
   "license": "ISC",
   "type": "module",
-  "description": "",
-  "devDependencies": {
-    "prisma": "^6.7.0"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.7.0"
-  }
+  "description": ""
 }
