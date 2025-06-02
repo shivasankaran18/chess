@@ -2,24 +2,28 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Share2, Copy, Clock, ArrowLeft, X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import ChessBoard from "@/components/ChessBoard";
 import MovesList from "@/components/MovesList";
 import PlayerTimer from "@/components/PlayerTimer";
 import WaitingRoom from "@/components/WaitingRoom";
+import ChatComponent from "@/components/ChatComponent";
 import { WS_URL } from "@/config";
 import {
-   GAME_START,
    GAME_JOIN,
    INIT_GAME,
    GAME_CREATED,
    GAME_STARTED,
+   GAME_MOVE,
+   GAME_OVER,
+   GAME_MSG,
 } from "utils/constants";
 import { useSession } from "next-auth/react";
 import { Chess } from "chess.js";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { Message, Moves } from "utils/types";
 
 export default function GamePage() {
    const { theme } = useTheme();
@@ -33,18 +37,17 @@ export default function GamePage() {
    const [board, setBoard] = useState(chess.board());
    const [loading, setLoading] = useState(true);
    const [id, setId] = useState<number>(0);
+   const [moves, setMoves] = useState<Moves>([]);
+   const [messages, setMessages] = useState<Message[]>([]);
    const { data: session, status } = useSession();
+   const router = useRouter();
+
    const params = useParams();
    const gameId = params?.id?.toString();
-   
 
    useEffect(() => {
       console.log(status);
       if (status === "loading") return;
-
-      if (socketRef.current) {
-         socketRef.current.close();
-      }
 
       const ws = new WebSocket(WS_URL);
 
@@ -72,14 +75,6 @@ export default function GamePage() {
          }
       };
 
-      setTimeout(()=>{
-         ws.send(
-            JSON.stringify({
-               type:"summa"
-            }),
-         );
-      },4000)
-
       ws.onmessage = (event) => {
          const data = JSON.parse(event.data);
          const msg = data.type;
@@ -96,8 +91,24 @@ export default function GamePage() {
                setGameStarted(true);
                setLoading(false);
                break;
-            case "summa":
-               console.log(data);
+
+            case GAME_MOVE:
+               console.log("Move received:", data.move);
+               chess.move(data.move);
+               setBoard(chess.board());
+               setMoves(data.moves);
+               break;
+
+            case GAME_OVER:
+               setGameStarted(false);
+               alert(`Game Over! ${data.winner} wins!`);
+               setChess(new Chess());
+               setBoard(new Chess().board());
+               router.push("/home");
+
+            case GAME_MSG:
+               console.log("Message received:", data.messages);
+               setMessages(data.messages);
 
             default:
                console.log("Unhandled message type:", msg);
@@ -105,7 +116,7 @@ export default function GamePage() {
       };
 
       return () => {
-         console.log("hello")
+         console.log("hello");
          ws.close();
       };
    }, [status]);
@@ -115,6 +126,7 @@ export default function GamePage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
    };
+
    if (loading) {
       return (
          <div className="flex items-center justify-center min-h-screen bg-[#111111] text-white">
@@ -123,7 +135,7 @@ export default function GamePage() {
       );
    }
 
-   console.log(gameStarted)
+   console.log(gameStarted);
 
    return (
       <motion.div
@@ -157,33 +169,51 @@ export default function GamePage() {
             </div>
          </header>
 
-         <main className="flex-grow p-4 md:p-8 flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto w-full">
-            <motion.div
-               className="flex-grow flex items-center justify-center"
-               initial={{ scale: 0.9, opacity: 0 }}
-               animate={{ scale: 1, opacity: 1 }}
-               transition={{ delay: 0.3, duration: 0.5 }}
-            >
-               <div className="w-full max-w-2xl mx-auto">
-                  <ChessBoard
-                     board={board}
-                     setBoard={setBoard}
-                     chess={chess}
-                     setChess={setChess}
-                     socket={socketRef.current}
-                     gameId={id}
-                  />
-               </div>
-            </motion.div>
+         <main className="flex-grow p-4 md:p-8 flex flex-col xl:flex-row gap-8 max-w-7xl mx-auto w-full">
+            <div className="flex-grow flex flex-col gap-6">
+               <motion.div
+                  className="flex items-center justify-center"
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+               >
+                  <div className="w-full max-w-2xl mx-auto">
+                     <ChessBoard
+                        board={board}
+                        setBoard={setBoard}
+                        chess={chess}
+                        setChess={setChess}
+                        socket={socketRef.current}
+                        gameId={id}
+                     />
+                  </div>
+               </motion.div>
+
+               {gameStarted && (
+                  <motion.div
+                     initial={{ y: 20, opacity: 0 }}
+                     animate={{ y: 0, opacity: 1 }}
+                     transition={{ delay: 0.7, duration: 0.5 }}
+                     className="bg-[#0a0a0a] border border-emerald-900/30 rounded-lg p-4 max-w-2xl mx-auto w-full"
+                  >
+                     <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                        <h3 className="text-emerald-400 font-medium">
+                           Game Moves
+                        </h3>
+                     </div>
+                     <MovesList moves={moves} />
+                  </motion.div>
+               )}
+            </div>
 
             <motion.div
-               className="lg:w-80 w-full"
+               className="xl:w-80 w-full"
                initial={{ x: 50, opacity: 0 }}
                animate={{ x: 0, opacity: 1 }}
                transition={{ delay: 0.5, duration: 0.5 }}
             >
                <div className="h-full flex flex-col gap-4">
-                  {/* Player 1 Timer */}
                   <motion.div
                      initial={{ y: -10, opacity: 0 }}
                      animate={{ y: 0, opacity: 1 }}
@@ -198,8 +228,7 @@ export default function GamePage() {
                      />
                   </motion.div>
 
-                  {/* Game Information */}
-                  <div className="bg-[#0a0a0a] border border-emerald-900/30 rounded-lg p-4 flex-grow flex flex-col">
+                  <div className="bg-[#0a0a0a] border border-emerald-900/30 rounded-lg p-4 flex-grow flex flex-col min-h-[400px]">
                      {!gameStarted ? (
                         <WaitingRoom
                            gameLink={gameLink}
@@ -207,11 +236,15 @@ export default function GamePage() {
                            copied={copied}
                         />
                      ) : (
-                        <MovesList />
+                        <ChatComponent
+                           gameId={id}
+                           socket={socketRef.current}
+                           messages={messages}
+                           user={session?.user}
+                        />
                      )}
                   </div>
 
-                  {/* Player 2 Timer */}
                   <motion.div
                      initial={{ y: 10, opacity: 0 }}
                      animate={{ y: 0, opacity: 1 }}

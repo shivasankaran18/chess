@@ -1,6 +1,6 @@
 import { WebSocketServer } from "ws";
 import { GameManager } from "./GameManager";
-import { GAME_JOIN, GAME_MOVE, INIT_GAME } from "utils/constants";
+import { GAME_JOIN, GAME_MOVE, GAME_MSG, INIT_GAME } from "utils/constants";
 import { User } from "./User";
 import { UserManagaer } from "./UserManager";
 
@@ -12,33 +12,42 @@ wss.on("connection", (ws) => {
    //TODO:authenticate user
 
    ws.on("message", async (body: any) => {
+      
       let data = JSON.parse(body.toString());
       let msg = data.type;
 
       console.log(`Received message: ${msg} with data:`, data);
+      let user: User | undefined;
+
 
       switch (msg) {
          case INIT_GAME:
-            let user1 = userManager.addUser(ws, data.user);
-            await gameManager.createGame(user1);
+            user = userManager.addUser(ws, data.user);
+            await gameManager.createGame(user);
             break;
 
          case GAME_JOIN:
-            let user2 = userManager.addUser(ws, data.user);
-            gameManager.startGame(parseInt(data.gameId), user2);
+            user = userManager.addUser(ws, data.user);
+            gameManager.startGame(parseInt(data.gameId), user);
             break;
 
          case GAME_MOVE:
-            let user = userManager.getUser(ws);
+            user = userManager.getUser(ws);
             if (!user) {
                ws.send(JSON.stringify({ type: "User not found" }));
                return;
             }
-            console.log("reached here");
             gameManager.makeMove(data.move, user, parseInt(data.gameId));
+            break;
 
-         case "summa":
-            ws.send(JSON.stringify({ type: "summa", data: "Hello from server!" }));
+         case GAME_MSG:
+            user= userManager.getUser(ws);
+            if (!user) {
+               ws.send(JSON.stringify({ type: "User not found" }));
+               return;
+            }
+            gameManager.sendMessage(data.message, user, parseInt(data.gameId));
+         
       }
    });
 });

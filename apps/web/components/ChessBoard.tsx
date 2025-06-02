@@ -66,8 +66,9 @@ export default function ChessBoard({
    const handleSquareClick = (row: number, col: number) => {
       const square = getSquareName(row, col);
       const piece = board[row][col];
+      
 
-      // Step 1: Select the piece
+      // 1. I will check for the first selected square 
       if (!from) {
          if (!piece) return;
          const moves = chess.moves({ square, verbose: true });
@@ -76,26 +77,27 @@ export default function ChessBoard({
          return;
       }
 
-      // Step 2: Clicked on same piece to deselect
+      // 2. if the square is the same as the first selected square, I will reset the state
+
       if (from === square) {
          setFrom(null);
          setPossibleMoves([]);
          return;
       }
 
-      // Step 3: Change selected piece
+      // 3. if the square is not the same as the first selected square, I will check if the piece is valid
       if (piece && piece.color === chess.get(from)?.color) {
          const moves = chess.moves({ square, verbose: true });
          setFrom(square);
          setPossibleMoves(moves.map((m) => m.to));
          return;
       }
-
-      // Step 4: Clicked on a valid destination
+      
+      // 4. if the square is valid, I will make the move
       if (possibleMoves.includes(square)) {
          setTo(square);
          console.log("hello");
-         console.log(gameId)
+         console.log(gameId);
 
          if (socket?.readyState === WebSocket.OPEN) {
             socket.send(
@@ -108,33 +110,14 @@ export default function ChessBoard({
                   },
                }),
             );
+            setFrom(null);
+            setPossibleMoves([]);
          }
       } else {
          setFrom(null);
          setPossibleMoves([]);
       }
    };
-
-   if (socket) {
-      socket.onmessage = (event) => {
-         const data = JSON.parse(event.data);
-         switch (data.type) {
-            case WAIT_FOR_THE_SECOND_PLAYER:
-               alert("Waiting for the second player to join");
-               break;
-            case GAME_MOVE:
-               let { from, to } = data.move;
-               console.log(data.move)
-               chess.move({ from, to, promotion: "q" });
-               setBoard(chess.board());
-               setLastMove({ from, to });
-         }
-
-         setFrom(null);
-         setTo(null);
-         setPossibleMoves([]);
-      };
-   }
 
    const getPieceImage = (piece: any) => {
       if (!piece) return null;

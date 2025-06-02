@@ -23,12 +23,10 @@ export class UserManagaer{
 
    public  addUser(socket: WebSocket, user:session): User {
       if (this.users.has(socket)) {
-         console.log(`User already exists: ${user.name}`);
          return this.users.get(socket)!;
       }
       const newUser = new User(socket, user);
       this.users.set(socket, newUser);
-      console.log(`User added: ${newUser.user.name}`);
       return newUser;
    }
 

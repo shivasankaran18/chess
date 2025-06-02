@@ -34,7 +34,6 @@ export class GameManager {
       // });
       const game = new Game(++temp, player1);
       this.pendingGames.set(game.id, game);
-      console.log(this.pendingGames)
       player1.socket.send(JSON.stringify({ type: GAME_CREATED }));
    }
    public startGame(gameId: number, player2: User): void {
@@ -42,7 +41,6 @@ export class GameManager {
       if (!game) {
          return;
       }
-      console.log(`Starting game ${gameId} with player ${player2.user.name}`);
       game.player2 = player2;
       this.pendingGames.delete(gameId);
       this.ongoingGames.set(gameId, game);
@@ -72,7 +70,18 @@ export class GameManager {
          user.socket.send(JSON.stringify({ type: GAME_NOT_FOUND }));
          return;
       }
-      console.log("reached here in makeMove");
       game.makeMove(move, user);
    }
+
+   public sendMessage(message: string, user: User, gameId: number): void {
+      const game = this.ongoingGames.get(gameId);
+      if (!game) {
+         user.socket.send(JSON.stringify({ type: GAME_NOT_FOUND }));
+         return;
+      }
+      game.sendMessage(message, user);
+   }
+
+
+
 }

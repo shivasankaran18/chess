@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { move } from "utils/types";
+import { move, Moves,Message } from "utils/types";
 import { Chess } from "chess.js";
 import { User } from "./User";
 import {
@@ -7,6 +7,8 @@ import {
    INVALID_MOVE,
    WRONG_PLAYER,
    WAIT_FOR_THE_SECOND_PLAYER,
+   GAME_OVER,
+   GAME_MSG,
 } from "utils/constants";
 
 export class Game {
@@ -15,7 +17,9 @@ export class Game {
    public player2: User | null;
    private board: Chess;
    private startTIme: Date;
-   private movesCount: number;
+   private moves:Moves
+   private messages: Message[];
+
 
    constructor(id: number, player1: User, player2?: User) {
       this.id = id;
@@ -23,15 +27,12 @@ export class Game {
       this.player2 = player2 ?? null;
       this.board = new Chess();
       this.startTIme = new Date();
-      this.movesCount = 0;
+      this.moves = [];
+      this.messages = [];
    }
 
    public makeMove(move: move, user: User): void {
-      console.log(
-         `User ${user.user.name} is making a move in game ${this.id}: ${move}`,
-      );
       if (!this.player2) {
-         console.log(`Game ${this.id} is waiting for the second player.`);
          this.player1.socket.send(
             JSON.stringify({ type: WAIT_FOR_THE_SECOND_PLAYER }),
          );
@@ -42,8 +43,8 @@ export class Game {
          (this.board.turn() === "b" && user === this.player2)
       ) {
          if (this.board.move(move)) {
-            this.movesCount++;
 
+            this.moves=[...this.moves,{from:move.from,to:move.to, player:user.user.name,timestamp: new Date()}];
             if (this.board.isGameOver()) {
                const winner =
                   this.board.turn() === "w" ? this.player2 : this.player1;
@@ -51,21 +52,35 @@ export class Game {
                   this.board.turn() === "w" ? this.player1 : this.player2;
 
                winner?.socket.send(
-                  JSON.stringify({ type: "You win!", gameOver: true }),
+                  JSON.stringify({
+                     type: GAME_OVER,
+                     winner: winner.user.email,
+                     loser: loser?.user.email,
+                  }),
                );
                loser?.socket.send(
-                  JSON.stringify({ type: "You lose!", gameOver: true }),
+                  JSON.stringify({
+                     type: GAME_OVER,
+                     winner: winner.user.email,
+                     loser: loser?.user.email,
+                  }),
                );
             } else {
-                     console.log(this.board.board());
+               
                this.player1.socket.send(
-                  JSON.stringify({ type: GAME_MOVE, move }),
+                  JSON.stringify({
+                     type: GAME_MOVE,
+                     move,
+                     moves: this.moves,
+                  }),
                );
                this.player2?.socket.send(
-                  JSON.stringify({ type: GAME_MOVE, move }),
+                  JSON.stringify({
+                     type: GAME_MOVE,
+                     move,
+                     moves: this.moves,
+                  }),
                );
-         
-
             }
          } else {
             console.log(`Invalid move by ${user.user.name} in game ${this.id}`);
@@ -75,4 +90,17 @@ export class Game {
          user.socket.send(JSON.stringify({ type: WRONG_PLAYER }));
       }
    }
+
+   public sendMessage(message: string, user: User): void {
+      const msg: Message = {
+         text: message,
+         name: user.user.name,
+         timestamp: new Date(),
+      };
+      this.messages.push(msg);
+      this.player1.socket.send(JSON.stringify({ type: GAME_MSG, messages:this.messages }));
+      this.player2?.socket.send(JSON.stringify({ type: GAME_MSG, messages:this.messages }));
+   }
+
+
 }

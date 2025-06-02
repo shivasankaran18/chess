@@ -7,3 +7,5 @@ export const INVALID_MOVE = 'invalid_move';
 export const WRONG_PLAYER = 'wrong_player';
 export const WAIT_FOR_THE_SECOND_PLAYER = 'wait_for_second_player';
 export const GAME_NOT_FOUND = 'game_not_found';
+export const GAME_OVER= 'game_over';
+export const GAME_MSG= 'game_msg';
