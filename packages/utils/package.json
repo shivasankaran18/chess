@@ -1,13 +1,17 @@
 {
-  "name": "types",
+  "name": "utils",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "exports":{
+     "./constants": "./constants.ts",
+     "./types": "./types.ts"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
+  "type": "commonjs",
   "description": ""
 }

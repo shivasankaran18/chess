@@ -1,87 +1,88 @@
 generator client {
-  provider = "prisma-client-js"
+   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+   provider = "postgresql"
+   url      = env("DATABASE_URL")
 }
 
 model User {
-  id            Int   @id @default(autoincrement())
-  username      String?   @unique
-  name          String?
-  email         String   @unique
-  provider      AuthProvider
-  rating        Int      @default(1200)
-  gamesAsWhite  Game[]   @relation("GamesAsWhite")
-  gamesAsBlack  Game[]   @relation("GamesAsBlack")
-  createdAt     DateTime @default(now())
-  lastLogin     DateTime?
-  avatarUrl      String?
+   id           Int          @id @default(autoincrement())
+   username     String?      @unique
+   name         String?
+   email        String       @unique
+   provider     AuthProvider
+   rating       Int          @default(1200)
+   gamesAsWhite Game[]       @relation("GamesAsWhite")
+   gamesAsBlack Game[]       @relation("GamesAsBlack")
+   createdAt    DateTime     @default(now())
+   lastLogin    DateTime?
+   avatarUrl    String?
 
-  @@index([rating])
+   @@index([rating])
 }
 
 model Game {
-  id            Int     @id @default(autoincrement())
-  whitePlayerId Int
-  blackPlayerId Int
-  whitePlayer   User       @relation("GamesAsWhite", fields: [whitePlayerId], references: [id])
-  blackPlayer   User       @relation("GamesAsBlack", fields: [blackPlayerId], references: [id])
-  status        GameStatus
-  result        GameResult?
-  timeControl   TimeControl
-  startingFen   String     @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-  currentFen    String?
-  startAt       DateTime   @default(now())
-  endAt         DateTime?
-  moves         Move[]
-  opening       String?
-  event         String?
+   id            Int         @id @default(autoincrement())
+   whitePlayerId Int
+   blackPlayerId Int?
+   whitePlayer   User        @relation("GamesAsWhite", fields: [whitePlayerId], references: [id])
+   blackPlayer   User?       @relation("GamesAsBlack", fields: [blackPlayerId], references: [id])
+   status        GameStatus
+   result        GameResult?
+   timeControl   TimeControl
+   startingFen   String      @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+   currentFen    String?
+   startAt       DateTime    @default(now())
+   endAt         DateTime?
+   moves         Move[]
+   opening       String?
+   event         String?
 
-  @@index([status, result])
+   @@index([status, result])
 }
 
 model Move {
-  id          Int   @id @default(autoincrement())
-  gameId      Int
-  game        Game     @relation(fields: [gameId], references: [id])
-  moveNumber  Int
-  from        String
-  to          String
-  comments    String?
-  before      String
-  after       String
-  timeTaken   Int?     @default(0)
-  createdAt   DateTime @default(now())
-  san         String?   
+   id         Int      @id @default(autoincrement())
+   gameId     Int
+   game       Game     @relation(fields: [gameId], references: [id])
+   moveNumber Int
+   from       String
+   to         String
+   comments   String?
+   before     String
+   after      String
+   timeTaken  Int?     @default(0)
+   createdAt  DateTime @default(now())
+   san        String?
 
-  @@index([gameId])
+   @@index([gameId])
 }
 
 enum GameStatus {
-  IN_PROGRESS
-  COMPLETED
-  ABANDONED
-  TIME_UP
-  PLAYER_EXIT
+   WAITING_FOR_PLAYER
+   IN_PROGRESS
+   COMPLETED
+   ABANDONED
+   TIME_UP
+   PLAYER_EXIT
 }
 
 enum GameResult {
-  WHITE_WINS
-  BLACK_WINS
-  DRAW
+   WHITE_WINS
+   BLACK_WINS
+   DRAW
 }
 
 enum TimeControl {
-  CLASSICAL
-  RAPID
-  BLITZ
-  BULLET
+   CLASSICAL
+   RAPID
+   BLITZ
+   BULLET
 }
 
 enum AuthProvider {
-  GOOGLE
-  GITHUB
+   GOOGLE
+   GITHUB
 }

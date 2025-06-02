@@ -1,73 +1,129 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Share2, Copy, Clock, ArrowLeft, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import Image from "next/image";
 import ChessBoard from "@/components/ChessBoard";
 import MovesList from "@/components/MovesList";
 import PlayerTimer from "@/components/PlayerTimer";
 import WaitingRoom from "@/components/WaitingRoom";
 import { WS_URL } from "@/config";
-import {GAME_START,GAME_JOIN} from "types"
+import {
+   GAME_START,
+   GAME_JOIN,
+   INIT_GAME,
+   GAME_CREATED,
+   GAME_STARTED,
+} from "utils/constants";
 import { useSession } from "next-auth/react";
+import { Chess } from "chess.js";
+import { useParams } from "next/navigation";
 
-type gameProps = {
-   gameId: string;
-};
-
-export default function GamePage({ params }: { params: gameProps }) {
+export default function GamePage() {
    const { theme } = useTheme();
    const [gameStarted, setGameStarted] = useState(false);
    const [gameLink, setGameLink] = useState(
       "https://chessmaster.com/game/a1b2c3d4",
    );
    const [copied, setCopied] = useState(false);
-   const [socket, setSocket] = useState<WebSocket | null>(null);
-   const {data:session,status} = useSession();
+   const socketRef = useRef<WebSocket | null>(null);
+   const [chess, setChess] = useState(new Chess());
+   const [board, setBoard] = useState(chess.board());
+   const [loading, setLoading] = useState(true);
+   const [id, setId] = useState<number>(0);
+   const { data: session, status } = useSession();
+   const params = useParams();
+   const gameId = params?.id?.toString();
+   
 
-   if (params.gameId != "new") {
-      setGameStarted(true);
-   }
-   useEffect(()=>{
-      const ws=new WebSocket(WS_URL);
+   useEffect(() => {
+      console.log(status);
+      if (status === "loading") return;
+
+      if (socketRef.current) {
+         socketRef.current.close();
+      }
+
+      const ws = new WebSocket(WS_URL);
+
       ws.onopen = () => {
-         setSocket(ws);
-      }
-     
+         socketRef.current = ws;
+         console.log("WebSocket connected");
 
-   },[])
-   if(socket)
-   {
-       if(params.gameId!="new")
-      {
-         socket.send(JSON.stringify({
-            type:GAME_JOIN,
-            gameId: params.gameId,
-            user:session?.user
+         if (gameId !== "new") {
+            ws.send(
+               JSON.stringify({
+                  type: GAME_JOIN,
+                  gameId,
+                  user: session?.user,
+                  status,
+               }),
+            );
+         } else {
+            ws.send(
+               JSON.stringify({
+                  type: INIT_GAME,
+                  gameId,
+                  user: session?.user,
+               }),
+            );
+         }
+      };
 
+      setTimeout(()=>{
+         ws.send(
+            JSON.stringify({
+               type:"summa"
+            }),
+         );
+      },4000)
 
-         }))
-      }
-      else
-      {
-         socket.send(JSON.stringify({
-            type:GAME_START,
-            gameId: params.gameId,
-            user:session?.user
-         }))
-      }
+      ws.onmessage = (event) => {
+         const data = JSON.parse(event.data);
+         const msg = data.type;
+         console.log("Received:", data);
 
-   }
-     
+         switch (msg) {
+            case GAME_CREATED:
+               setLoading(false);
+               break;
+
+            case GAME_STARTED:
+               console.log("Game Started!", data);
+               setId(data.gameId);
+               setGameStarted(true);
+               setLoading(false);
+               break;
+            case "summa":
+               console.log(data);
+
+            default:
+               console.log("Unhandled message type:", msg);
+         }
+      };
+
+      return () => {
+         console.log("hello")
+         ws.close();
+      };
+   }, [status]);
 
    const copyGameLink = () => {
       navigator.clipboard.writeText(gameLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
    };
+   if (loading) {
+      return (
+         <div className="flex items-center justify-center min-h-screen bg-[#111111] text-white">
+            <div className="text-lg font-semibold">Loading...</div>
+         </div>
+      );
+   }
+
+   console.log(gameStarted)
 
    return (
       <motion.div
@@ -109,7 +165,14 @@ export default function GamePage({ params }: { params: gameProps }) {
                transition={{ delay: 0.3, duration: 0.5 }}
             >
                <div className="w-full max-w-2xl mx-auto">
-                  <ChessBoard />
+                  <ChessBoard
+                     board={board}
+                     setBoard={setBoard}
+                     chess={chess}
+                     setChess={setChess}
+                     socket={socketRef.current}
+                     gameId={id}
+                  />
                </div>
             </motion.div>
 
