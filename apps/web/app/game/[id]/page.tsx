@@ -20,6 +20,15 @@ import {
    GAME_OVER,
    GAME_MSG,
    INIT_SFU,
+   PRODUCER_RTP_CAPABILITIES,
+   PRODUCER_TRANSPORT_CREATED,
+   PRODUCER_TRANSPORT_CONNECTED,
+   PRODUCED,
+   NEW_PRODUCER,
+   CONSUMER_RTP_CAPABILITIES,
+   CONSUMER_TRANSPORT_CREATED,
+   CONSUMER_TRANSPORT_CONNECTED,
+   CONSUMED,
 } from "utils/constants";
 import { useSession } from "next-auth/react";
 import { Chess } from "chess.js";
@@ -27,23 +36,44 @@ import { useParams, useRouter } from "next/navigation";
 import { Message, Moves } from "utils/types";
 import VideoCall from "@/components/VideoCall";
 import VideoCallButton from "@/components/VideoCallButton";
-import { getRtpCapabilities } from "@/lib/sfuHelper";
+import {
+   createReceiveTransport,
+   createSendTransport,
+   getConsumerRtpCapabilities,
+   getProducerRtpCapabilities,
+   loadDevice,
+   requestConsumerTransport,
+   requestProducerTransport,
+} from "@/lib/sfuHelper";
+import * as mediasoupClient from "mediasoup-client";
 
 export default function GamePage() {
    const { theme } = useTheme();
+
    const [gameStarted, setGameStarted] = useState(false);
    const [gameLink, setGameLink] = useState(
       "https://chessmaster.com/game/a1b2c3d4",
    );
    const [copied, setCopied] = useState(false);
    const socketRef = useRef<WebSocket | null>(null);
-   const sfuRef = useRef<WebSocket | null>(null);
    const [chess, setChess] = useState(new Chess());
    const [board, setBoard] = useState(chess.board());
    const [loading, setLoading] = useState(true);
    const [id, setId] = useState<number>(0);
    const [moves, setMoves] = useState<Moves>([]);
    const [messages, setMessages] = useState<Message[]>([]);
+
+   const sfuRef = useRef<WebSocket | null>(null);
+   const deviceRef = useRef<mediasoupClient.Device | null>(null);
+   const sendTransportRef = useRef<mediasoupClient.types.Transport | null>(
+      null,
+   );
+   const localVideoRef = useRef<HTMLVideoElement | null>(null);
+   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+   const receiveTransportRef = useRef<mediasoupClient.types.Transport | null>(
+      null,
+   );
+
    const [isCallActive, setIsCallActive] = useState(false);
    const [isVideoEnabled, setIsVideoEnabled] = useState(true);
    const [isAudioEnabled, setIsAudioEnabled] = useState(true);
@@ -54,7 +84,7 @@ export default function GamePage() {
    };
 
    const handleToggleCall = () => {
-      getRtpCapabilities(sfuRef.current);  
+      getProducerRtpCapabilities(sfuRef.current, id);
       setIsCallActive(true);
    };
 
@@ -160,10 +190,89 @@ export default function GamePage() {
          ws.send(
             JSON.stringify({
                type: INIT_SFU,
-               gameId: id,
+               roomId: id,
                user: session?.user,
             }),
          );
+      };
+
+      ws.onmessage = async (event) => {
+         let msg = JSON.parse(event.data);
+         switch (msg.type) {
+            case PRODUCER_RTP_CAPABILITIES:
+               await loadDevice(deviceRef, msg.capabilities, id);
+               console.log("device loaded", deviceRef.current);
+               requestProducerTransport(
+                  sfuRef.current,
+                  deviceRef.current?.rtpCapabilities,
+                  id,
+               );
+               break;
+            case PRODUCER_TRANSPORT_CREATED:
+               if (!sfuRef.current || !deviceRef.current) {
+                  return;
+               }
+               createSendTransport(
+                  msg.data,
+                  sfuRef.current,
+                  deviceRef.current,
+                  sendTransportRef.current,
+                  id,
+                  localVideoRef.current,
+               );
+               break;
+            case PRODUCER_TRANSPORT_CONNECTED:
+               console.log("Producer transport connected");
+               break;
+
+            case PRODUCED:
+               console.log("producer created");
+               break;
+
+            case NEW_PRODUCER:
+               //start the flow for the consumer transport
+               getConsumerRtpCapabilities(sfuRef.current, id);
+               break;
+
+            case CONSUMER_RTP_CAPABILITIES:
+               await loadDevice(deviceRef, msg.capabilities, id);
+               requestConsumerTransport(
+                  sfuRef.current,
+                  deviceRef.current?.rtpCapabilities,
+                  id,
+               );
+               break;
+
+            case CONSUMER_TRANSPORT_CREATED:
+               if (!sfuRef.current || !deviceRef.current) {
+                  return;
+               }
+               createReceiveTransport(
+                  msg.data,
+                  sfuRef.current,
+                  deviceRef.current,
+                  receiveTransportRef.current,
+                  id,
+                  remoteVideoRef.current,
+               );
+               break;
+            case CONSUMER_TRANSPORT_CONNECTED:
+               console.log("Consumer transport connected");
+               break;
+
+            case CONSUMED:
+               const { idd, producerId, kind, rtpParameters } = msg.data;
+               const consumer = await receiveTransportRef?.current?.consume({
+                  id: idd,
+                  producerId,
+                  kind,
+                  rtpParameters,
+               });
+               remoteStreamRef?.current.addTrack(consumer.track);
+               remoteVideoRef.current.srcObject = remoteStreamRef.current;
+               console.log("🎥 Stream consumed");
+               break;
+         }
       };
    }, [status, socketRef, id]);
 
@@ -215,6 +324,7 @@ export default function GamePage() {
                            playerName="Player 2"
                            isVideoEnabled={true}
                            isAudioEnabled={true}
+                           videoRef={localVideoRef}
                         />
                      </motion.div>
                   )}
@@ -347,12 +457,12 @@ export default function GamePage() {
                      isAudioEnabled={isAudioEnabled}
                      onToggleVideo={handleToggleVideo}
                      onToggleAudio={handleToggleAudio}
+                     videoRef={localVideoRef}
                   />
                </motion.div>
             )}
          </AnimatePresence>
 
-         {/* Share Video button - bottom right */}
          <VideoCallButton
             isCallActive={isCallActive}
             onToggleCall={handleToggleCall}

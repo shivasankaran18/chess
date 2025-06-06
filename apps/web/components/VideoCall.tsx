@@ -10,7 +10,7 @@ interface VideoCallProps {
    onToggleAudio?: () => void;
    onEndCall?: () => void;
    playerName?: string;
-   videoStream?: MediaStream | null;
+   videoRef?: React.RefObject<HTMLVideoElement | null>;
 }
 
 export default function VideoCall({
@@ -21,15 +21,9 @@ export default function VideoCall({
    onToggleAudio,
    onEndCall,
    playerName = "Player",
-   videoStream = null,
+   videoRef
 }: VideoCallProps) {
-   const videoRef = useRef<HTMLVideoElement>(null);
 
-   useEffect(() => {
-      if (videoRef.current && videoStream) {
-         videoRef.current.srcObject = videoStream;
-      }
-   }, [videoStream]);
 
    return (
       <motion.div
@@ -49,11 +43,10 @@ export default function VideoCall({
             muted={isUser}
             className={`
           w-full h-full object-cover
-          ${!isVideoEnabled || !videoStream ? "hidden" : "block"}
         `}
          />
 
-         {(!isVideoEnabled || !videoStream) && (
+         {(!isVideoEnabled ) && (
             <div className="w-full h-full bg-gradient-to-br from-emerald-900/20 to-black/40 flex items-center justify-center">
                <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
                   <span className="text-emerald-400 text-3xl font-bold">

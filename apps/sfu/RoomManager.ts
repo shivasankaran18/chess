@@ -1,12 +1,12 @@
 import { Room } from "./Room";
 
 export class RoomManager {
-   public rooms:Set<Room>;
+   public rooms:Map<number, Room>;
    private static roomManagerInstance: RoomManager;
    
 
    private constructor() {
-      this.rooms = new Set<Room>();
+      this.rooms = new Map<number, Room>();
    }
    
 
@@ -19,11 +19,11 @@ export class RoomManager {
 
    public createRoom(id: number): Room {
       const room = new Room(id);
-      this.rooms.add(room);
+      this.rooms.set(id, room);
       return room;
    }
 
    public getRoom(id: number): Room | undefined {
-      return Array.from(this.rooms).find(room => room.id === id);
+      return this.rooms.get(id);
    }
 }
