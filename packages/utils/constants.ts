@@ -9,3 +9,7 @@ export const WAIT_FOR_THE_SECOND_PLAYER = 'wait_for_second_player';
 export const GAME_NOT_FOUND = 'game_not_found';
 export const GAME_OVER= 'game_over';
 export const GAME_MSG= 'game_msg';
+export const INIT_SFU= 'init_sfu';
+export const GET_RTP_CAPABILITIES = 'get_rtp_capabilities';
+export const RTP_CAPABILITIES = 'rtp_capabilities';
+

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
@@ -10,7 +10,7 @@ import MovesList from "@/components/MovesList";
 import PlayerTimer from "@/components/PlayerTimer";
 import WaitingRoom from "@/components/WaitingRoom";
 import ChatComponent from "@/components/ChatComponent";
-import { WS_URL } from "@/config";
+import { SFU_URL, WS_URL } from "@/config";
 import {
    GAME_JOIN,
    INIT_GAME,
@@ -19,11 +19,15 @@ import {
    GAME_MOVE,
    GAME_OVER,
    GAME_MSG,
+   INIT_SFU,
 } from "utils/constants";
 import { useSession } from "next-auth/react";
 import { Chess } from "chess.js";
 import { useParams, useRouter } from "next/navigation";
 import { Message, Moves } from "utils/types";
+import VideoCall from "@/components/VideoCall";
+import VideoCallButton from "@/components/VideoCallButton";
+import { getRtpCapabilities } from "@/lib/sfuHelper";
 
 export default function GamePage() {
    const { theme } = useTheme();
@@ -33,12 +37,34 @@ export default function GamePage() {
    );
    const [copied, setCopied] = useState(false);
    const socketRef = useRef<WebSocket | null>(null);
+   const sfuRef = useRef<WebSocket | null>(null);
    const [chess, setChess] = useState(new Chess());
    const [board, setBoard] = useState(chess.board());
    const [loading, setLoading] = useState(true);
    const [id, setId] = useState<number>(0);
    const [moves, setMoves] = useState<Moves>([]);
    const [messages, setMessages] = useState<Message[]>([]);
+   const [isCallActive, setIsCallActive] = useState(false);
+   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+
+   const handleExpandCall = () => {
+      // Logic for expanding video call
+      console.log("Expand video call");
+   };
+
+   const handleToggleCall = () => {
+      getRtpCapabilities(sfuRef.current);  
+      setIsCallActive(true);
+   };
+
+   const handleToggleVideo = () => {
+      setIsVideoEnabled(!isVideoEnabled);
+   };
+
+   const handleToggleAudio = () => {
+      setIsAudioEnabled(!isAudioEnabled);
+   };
    const { data: session, status } = useSession();
    const router = useRouter();
 
@@ -121,6 +147,26 @@ export default function GamePage() {
       };
    }, [status]);
 
+   useEffect(() => {
+      if (status === "loading" || !socketRef.current || !id) {
+         return;
+      }
+      const ws = new WebSocket(SFU_URL);
+
+      ws.onopen = () => {
+         sfuRef.current = ws;
+         console.log("SFU WebSocket connected");
+
+         ws.send(
+            JSON.stringify({
+               type: INIT_SFU,
+               gameId: id,
+               user: session?.user,
+            }),
+         );
+      };
+   }, [status, socketRef, id]);
+
    const copyGameLink = () => {
       navigator.clipboard.writeText(gameLink);
       setCopied(true);
@@ -156,6 +202,23 @@ export default function GamePage() {
                      ChessMaster
                   </span>
                </Link>
+               <AnimatePresence>
+                  {isCallActive && (
+                     <motion.div
+                        initial={{ opacity: 0, x: 20, y: -20 }}
+                        animate={{ opacity: 1, x: 0, y: 0 }}
+                        exit={{ opacity: 0, x: 20, y: -20 }}
+                        className="absolute top-4 right-4"
+                     >
+                        <VideoCall
+                           isUser={false}
+                           playerName="Player 2"
+                           isVideoEnabled={true}
+                           isAudioEnabled={true}
+                        />
+                     </motion.div>
+                  )}
+               </AnimatePresence>
 
                <div className="flex items-center gap-4">
                   <Link
@@ -269,6 +332,32 @@ export default function GamePage() {
                </div>
             </motion.div>
          </main>
+         <AnimatePresence>
+            {isCallActive && (
+               <motion.div
+                  initial={{ opacity: 0, y: 20, x: 20 }}
+                  animate={{ opacity: 1, y: 0, x: 0 }}
+                  exit={{ opacity: 0, y: 20, x: 20 }}
+                  className="fixed bottom-32 right-6 z-40"
+               >
+                  <VideoCall
+                     isUser={true}
+                     playerName="You"
+                     isVideoEnabled={isVideoEnabled}
+                     isAudioEnabled={isAudioEnabled}
+                     onToggleVideo={handleToggleVideo}
+                     onToggleAudio={handleToggleAudio}
+                  />
+               </motion.div>
+            )}
+         </AnimatePresence>
+
+         {/* Share Video button - bottom right */}
+         <VideoCallButton
+            isCallActive={isCallActive}
+            onToggleCall={handleToggleCall}
+            onExpandCall={handleExpandCall}
+         />
       </motion.div>
    );
 }
