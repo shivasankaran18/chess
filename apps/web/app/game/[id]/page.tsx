@@ -37,6 +37,7 @@ import { Message, Moves } from "utils/types";
 import VideoCall from "@/components/VideoCall";
 import VideoCallButton from "@/components/VideoCallButton";
 import {
+   consume,
    createReceiveTransport,
    createSendTransport,
    getConsumerRtpCapabilities,
@@ -46,6 +47,7 @@ import {
    requestProducerTransport,
 } from "@/lib/sfuHelper";
 import * as mediasoupClient from "mediasoup-client";
+import { Button } from "@/components/ui/button";
 
 export default function GamePage() {
    const { theme } = useTheme();
@@ -73,18 +75,18 @@ export default function GamePage() {
    const receiveTransportRef = useRef<mediasoupClient.types.Transport | null>(
       null,
    );
+   const producerIdRef = useRef<string | null>(null);
 
    const [isCallActive, setIsCallActive] = useState(false);
    const [isVideoEnabled, setIsVideoEnabled] = useState(true);
    const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-
+   const [flag, setFlag] = useState(false);
    const handleExpandCall = () => {
       // Logic for expanding video call
-      console.log("Expand video call");
    };
 
    const handleToggleCall = () => {
-      getProducerRtpCapabilities(sfuRef.current, id);
+      getProducerRtpCapabilities(sfuRef, id);
       setIsCallActive(true);
    };
 
@@ -102,14 +104,12 @@ export default function GamePage() {
    const gameId = params?.id?.toString();
 
    useEffect(() => {
-      console.log(status);
       if (status === "loading") return;
 
       const ws = new WebSocket(WS_URL);
 
       ws.onopen = () => {
          socketRef.current = ws;
-         console.log("WebSocket connected");
 
          if (gameId !== "new") {
             ws.send(
@@ -134,7 +134,6 @@ export default function GamePage() {
       ws.onmessage = (event) => {
          const data = JSON.parse(event.data);
          const msg = data.type;
-         console.log("Received:", data);
 
          switch (msg) {
             case GAME_CREATED:
@@ -142,14 +141,12 @@ export default function GamePage() {
                break;
 
             case GAME_STARTED:
-               console.log("Game Started!", data);
                setId(data.gameId);
                setGameStarted(true);
                setLoading(false);
                break;
 
             case GAME_MOVE:
-               console.log("Move received:", data.move);
                chess.move(data.move);
                setBoard(chess.board());
                setMoves(data.moves);
@@ -163,7 +160,6 @@ export default function GamePage() {
                router.push("/home");
 
             case GAME_MSG:
-               console.log("Message received:", data.messages);
                setMessages(data.messages);
 
             default:
@@ -185,7 +181,6 @@ export default function GamePage() {
 
       ws.onopen = () => {
          sfuRef.current = ws;
-         console.log("SFU WebSocket connected");
 
          ws.send(
             JSON.stringify({
@@ -201,9 +196,8 @@ export default function GamePage() {
          switch (msg.type) {
             case PRODUCER_RTP_CAPABILITIES:
                await loadDevice(deviceRef, msg.capabilities, id);
-               console.log("device loaded", deviceRef.current);
                requestProducerTransport(
-                  sfuRef.current,
+                  sfuRef,
                   deviceRef.current?.rtpCapabilities,
                   id,
                );
@@ -214,30 +208,28 @@ export default function GamePage() {
                }
                createSendTransport(
                   msg.data,
-                  sfuRef.current,
-                  deviceRef.current,
-                  sendTransportRef.current,
+                  sfuRef,
+                  deviceRef,
+                  sendTransportRef,
                   id,
-                  localVideoRef.current,
+                  localVideoRef,
                );
                break;
             case PRODUCER_TRANSPORT_CONNECTED:
-               console.log("Producer transport connected");
                break;
 
             case PRODUCED:
-               console.log("producer created");
                break;
 
             case NEW_PRODUCER:
-               //start the flow for the consumer transport
-               getConsumerRtpCapabilities(sfuRef.current, id);
+               producerIdRef.current = msg.producerId;
+               getConsumerRtpCapabilities(sfuRef, id);
                break;
 
             case CONSUMER_RTP_CAPABILITIES:
                await loadDevice(deviceRef, msg.capabilities, id);
                requestConsumerTransport(
-                  sfuRef.current,
+                  sfuRef,
                   deviceRef.current?.rtpCapabilities,
                   id,
                );
@@ -249,28 +241,49 @@ export default function GamePage() {
                }
                createReceiveTransport(
                   msg.data,
-                  sfuRef.current,
-                  deviceRef.current,
-                  receiveTransportRef.current,
+                  sfuRef,
+                  deviceRef,
+                  receiveTransportRef,
                   id,
-                  remoteVideoRef.current,
+                  remoteVideoRef,
+                  producerIdRef.current,
                );
                break;
             case CONSUMER_TRANSPORT_CONNECTED:
                console.log("Consumer transport connected");
+               // setTimeout(() => {
+               //    consume(sfuRef, deviceRef, id, producerIdRef);
+               // }, 15000);
+
                break;
 
             case CONSUMED:
-               const { idd, producerId, kind, rtpParameters } = msg.data;
+               if (
+                  !remoteVideoRef ||
+                  !remoteVideoRef.current ||
+                  !receiveTransportRef ||
+                  !receiveTransportRef.current
+               ) {
+                  console.error("Remote video element not found");
+                  return;
+               }
                const consumer = await receiveTransportRef?.current?.consume({
-                  id: idd,
-                  producerId,
-                  kind,
-                  rtpParameters,
+                  id: msg.consumerId,
+                  producerId: msg.producerId,
+                  kind: msg.kind,
+                  rtpParameters: msg.rtpParameters,
                });
-               remoteStreamRef?.current.addTrack(consumer.track);
-               remoteVideoRef.current.srcObject = remoteStreamRef.current;
+               const stream = new MediaStream();
+               stream.addTrack(consumer.track);
+
+               remoteVideoRef.current.srcObject = stream;
+               console.log(consumer);
                console.log("🎥 Stream consumed");
+               console.log(stream.getVideoTracks().length, "video tracks");
+            
+
+               setFlag(!flag);
+
                break;
          }
       };
@@ -289,8 +302,6 @@ export default function GamePage() {
          </div>
       );
    }
-
-   console.log(gameStarted);
 
    return (
       <motion.div
@@ -312,22 +323,21 @@ export default function GamePage() {
                   </span>
                </Link>
                <AnimatePresence>
-                  {isCallActive && (
-                     <motion.div
-                        initial={{ opacity: 0, x: 20, y: -20 }}
-                        animate={{ opacity: 1, x: 0, y: 0 }}
-                        exit={{ opacity: 0, x: 20, y: -20 }}
-                        className="absolute top-4 right-4"
-                     >
-                        <VideoCall
-                           isUser={false}
-                           playerName="Player 2"
-                           isVideoEnabled={true}
-                           isAudioEnabled={true}
-                           videoRef={localVideoRef}
-                        />
-                     </motion.div>
-                  )}
+                  <motion.div
+                     initial={{ opacity: 0, x: 20, y: -20 }}
+                     animate={{ opacity: 1, x: 0, y: 0 }}
+                     exit={{ opacity: 0, x: 20, y: -20 }}
+                     className="absolute top-4 right-4"
+                  >
+                  <VideoCall
+                        isUser={false}
+                        playerName="Player 2"
+                        isVideoEnabled={true}
+                        isAudioEnabled={true}
+                        videoRef={remoteVideoRef}
+                     />
+                    
+                  </motion.div>
                </AnimatePresence>
 
                <div className="flex items-center gap-4">
@@ -468,6 +478,10 @@ export default function GamePage() {
             onToggleCall={handleToggleCall}
             onExpandCall={handleExpandCall}
          />
+
+         <Button onClick={() => consume(sfuRef, deviceRef, id, producerIdRef)}>
+            Consume
+         </Button>
       </motion.div>
    );
 }

@@ -9,8 +9,8 @@ export class Room {
    public router: mediasoup.types.Router | undefined;
    public prouducerTransports: Map<WebSocket, mediasoup.types.WebRtcTransport>;
    public consumerTransports: Map<WebSocket, mediasoup.types.WebRtcTransport>;
-   public producers: Map<WebSocket, mediasoup.types.Producer>;
-   public consumers: Map<WebSocket, mediasoup.types.Consumer>;
+   public producers: Map<string, mediasoup.types.Producer>;
+   public consumers: Map<string, mediasoup.types.Consumer>;
 
    public constructor(id: number) {
       this.id = id;
@@ -18,8 +18,8 @@ export class Room {
       this.setup();
       this.prouducerTransports = new Map<WebSocket, mediasoup.types.WebRtcTransport>();
       this.consumerTransports = new Map<WebSocket, mediasoup.types.WebRtcTransport>();
-      this.producers = new Map<WebSocket, mediasoup.types.Producer>();
-      this.consumers = new Map<WebSocket, mediasoup.types.Consumer>();
+      this.producers = new Map<string, mediasoup.types.Producer>();
+      this.consumers = new Map<string, mediasoup.types.Consumer>();
    }
 
    private async setup() {

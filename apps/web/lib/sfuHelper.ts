@@ -12,14 +12,14 @@ import * as mediasoupClient from "mediasoup-client";
 import { RtpCapabilities } from "mediasoup-client/types";
 
 export const getProducerRtpCapabilities = (
-   ws: WebSocket | null,
+   ws: React.MutableRefObject<WebSocket | null>,
    id: number,
 ) => {
-   if (ws == null) {
+   if (ws.current == null) {
       return;
    }
 
-   ws.send(
+   ws.current.send(
       JSON.stringify({
          type: PRODUCER_GET_RTP_CAPABILITIES,
          roomId: id,
@@ -28,14 +28,14 @@ export const getProducerRtpCapabilities = (
 };
 
 export const getConsumerRtpCapabilities = (
-   ws: WebSocket | null,
+   ws: React.MutableRefObject<WebSocket | null>,
    id: number,
 ) => {
-   if (ws == null) {
+   if (ws.current == null) {
       return;
    }
 
-   ws.send(
+   ws.current.send(
       JSON.stringify({
          type: CONSUMER_GET_RTP_CAPABILITIES,
          roomId: id,
@@ -44,16 +44,14 @@ export const getConsumerRtpCapabilities = (
 };
 
 export const loadDevice = async (
-   deviceRef: any,
+   deviceRef: React.MutableRefObject<mediasoupClient.types.Device | null>,
    rtpCapabilities: RtpCapabilities,
    id: number,
 ) => {
    try {
-      console.log("Loading device with RTP capabilities:", rtpCapabilities);
       const device = new mediasoupClient.Device();
       await device.load({ routerRtpCapabilities: rtpCapabilities });
       deviceRef.current = device;
-      console.log("Device loaded successfully", device);
    } catch (e) {
       console.error("Error loading device:", e);
       return;
@@ -61,17 +59,15 @@ export const loadDevice = async (
 };
 
 export const requestProducerTransport = (
-   socket: WebSocket | null,
+   socket: React.MutableRefObject<WebSocket | null>,
    rtpCapabilities: RtpCapabilities | undefined,
    id: number,
 ) => {
-   console.log("gelo");
-   if (!socket) {
+   if (!socket.current) {
       return;
    }
-   console.log("Reached here requestProducerTransport");
 
-   socket.send(
+   socket.current.send(
       JSON.stringify({
          type: CREATE_PRODUCER_TRANSPORT,
          rtpCapabilities: rtpCapabilities,
@@ -81,15 +77,15 @@ export const requestProducerTransport = (
 };
 
 export const requestConsumerTransport = (
-   socket: WebSocket | null,
+   socket: React.MutableRefObject<WebSocket | null>,
    rtpCapabilities: RtpCapabilities | undefined,
    id: number,
 ) => {
-   if (!socket) {
+   if (!socket.current) {
       return;
    }
 
-   socket.send(
+   socket.current.send(
       JSON.stringify({
          type: CREATE_CONSUMER_TRANSPORT,
          rtpCapabilities: rtpCapabilities,
@@ -100,17 +96,21 @@ export const requestConsumerTransport = (
 
 export const createSendTransport = async (
    params: any,
-   socket: WebSocket,
-   device: mediasoupClient.types.Device,
-   sendTransport: mediasoupClient.types.Transport | null,
+   socket: React.MutableRefObject<WebSocket | null>,
+   device: React.MutableRefObject<mediasoupClient.types.Device | null>,
+   sendTransport: React.MutableRefObject<mediasoupClient.types.Transport | null>,
    id: number,
-   localVideo: HTMLVideoElement | null,
+   localVideo: React.MutableRefObject<HTMLVideoElement | null>,
 ) => {
-   const transport = device.createSendTransport(params);
-   sendTransport = transport;
+   if (!socket.current || !device.current) {
+      console.error("Socket or device is not initialized");
+      return;
+   }
+   const transport = device.current.createSendTransport(params);
+   sendTransport.current = transport;
 
    transport.on("connect", ({ dtlsParameters }, callback) => {
-      socket.send(
+      socket?.current?.send(
          JSON.stringify({
             type: CONNECT_PRODUCER_TRANSPORT,
             dtlsParameters,
@@ -121,7 +121,7 @@ export const createSendTransport = async (
    });
 
    transport.on("produce", ({ kind, rtpParameters }, callback) => {
-      socket.send(
+      socket.current?.send(
          JSON.stringify({ type: PRODUCE, kind, rtpParameters, roomId: id }),
       );
    });
@@ -129,24 +129,27 @@ export const createSendTransport = async (
    transport.on("connectionstatechange", (state) => {
       if (state === "failed") transport.close();
    });
-   console.log("📡 Transport created", transport.id);
    await startCamera(localVideo, sendTransport);
 };
 
 export const createReceiveTransport = async (
    params: any,
-   socket: WebSocket,
-   device: mediasoupClient.types.Device,
-   receiveTransport: mediasoupClient.types.Transport | null,
+   socket: React.MutableRefObject<WebSocket | null>,
+   device: React.MutableRefObject<mediasoupClient.types.Device | null>,
+   receiveTransport: React.MutableRefObject<mediasoupClient.types.Transport | null>,
    id: number,
-   remoteVideo: HTMLVideoElement | null,
+   remoteVideo: React.MutableRefObject<HTMLVideoElement | null>,
+   producerId: string | null,
 ) => {
-   const transport = device.createRecvTransport(params);
-   receiveTransport = transport;
-
+   if (!socket.current || !device.current) {
+      console.error("Socket or device is not initialized");
+      return;
+   }
+   const transport = device.current.createRecvTransport(params);
+   receiveTransport.current = transport;
 
    transport.on("connect", ({ dtlsParameters }, callback) => {
-      socket.send(
+      socket.current?.send(
          JSON.stringify({
             type: CONNECT_CONSUMER_TRANSPORT,
             dtlsParameters,
@@ -157,26 +160,45 @@ export const createReceiveTransport = async (
    });
 
    transport.on("connectionstatechange", (state) => {
-         console.log("🧭 Consumer transport state:", state);
-         if (state === "connected") {
-            socket.send(
-               JSON.stringify({
-                  type: CONSUME,
-                  rtpCapabilities: device.rtpCapabilities,
-               })
-            );
-         }
-         if (state === "failed") transport.close();
-      });
+      if (state === "connected") {
+         console.log("Transport connected");
+       
+      }
+      if (state === "failed") transport.close();
+   });
 
-
+   transport.on("icegatheringstatechange", (state) => {
+      console.log("ICE state:", state);
+   });
+   // socket.current?.send(
+   //    JSON.stringify({
+   //       type: CONSUME,
+   //       rtpCapabilities: device.current.rtpCapabilities,
+   //       roomId: id,
+   //       producerId: producerId,
+   //    }),
+   // );
 };
-
-const startCamera = async (
-   localVideo: HTMLVideoElement | null,
-   sendTransport: mediasoupClient.types.Transport | null,
+export const consume = (
+   socket: React.MutableRefObject<WebSocket | null>,
+   device: React.MutableRefObject<mediasoupClient.types.Device | null>,
+   id: number,
+   producerIdRef: React.MutableRefObject<string | null>,
 ) => {
-   if (!localVideo || !sendTransport) {
+   socket.current?.send(
+      JSON.stringify({
+         type: CONSUME,
+         rtpCapabilities: device.current?.rtpCapabilities,
+         roomId: id,
+         producerId: producerIdRef.current,
+      }),
+   );
+};
+const startCamera = async (
+   localVideo: React.MutableRefObject<HTMLVideoElement | null>,
+   sendTransport: React.MutableRefObject<mediasoupClient.types.Transport | null>,
+) => {
+   if (!localVideo.current || !sendTransport.current) {
       console.error("localVideoRef is null");
       return;
    }
@@ -184,13 +206,10 @@ const startCamera = async (
       video: true,
       audio: true,
    });
-   console.log("📹 Camera stream started", stream);
-   localVideo.srcObject = stream;
+   localVideo.current.srcObject = stream;
 
    const videoTrack = stream.getVideoTracks()[0];
-   const producer = await sendTransport.produce({
+   const producer = await sendTransport.current.produce({
       track: videoTrack,
    });
-
-   console.log("📡 Producing track", producer.id);
 };

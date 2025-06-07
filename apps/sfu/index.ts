@@ -18,6 +18,10 @@ import {
    CONSUMER_RTP_CAPABILITIES,
    CREATE_CONSUMER_TRANSPORT,
    CONSUMER_TRANSPORT_CREATED,
+   CONNECT_CONSUMER_TRANSPORT,
+   CONSUMER_TRANSPORT_CONNECTED,
+   CONSUME,
+   CONSUMED,
 } from "utils/constants";
 import {
    createWebRtcTransport,
@@ -111,11 +115,9 @@ wss.on("connection", (ws: WebSocket) => {
             if (!room?.router) {
                return;
             }
-            const consumerTransport = await createWebRtcTransport(
-               room.router,
-            );
+            const consumerTransport = await createWebRtcTransport(room.router);
 
-            room.consumerTransports.set(ws,consumerTransport.transport);
+            room.consumerTransports.set(ws, consumerTransport.transport);
 
             consumerTransport.transport.observer.on("close", () => {
                console.log("❌ Consumer transport closed");
@@ -151,6 +153,29 @@ wss.on("connection", (ws: WebSocket) => {
                console.error("Error connecting producer transport:", error);
             }
             break;
+         case CONNECT_CONSUMER_TRANSPORT:
+            room = roomManager.getRoom(parseInt(data.roomId));
+            if (!room) {
+               return;
+            }
+            const consTrans = room.consumerTransports.get(ws);
+            if (!consTrans) {
+               return;
+            }
+            try {
+               await consTrans.connect({
+                  dtlsParameters: data.dtlsParameters,
+               });
+               ws.send(
+                  JSON.stringify({
+                     type: CONSUMER_TRANSPORT_CONNECTED,
+                  }),
+               );
+            } catch (error) {
+               console.error("Error connecting consumer transport:", error);
+            }
+            break;
+
          case PRODUCE:
             const { kind, rtpParameters } = data;
             room = roomManager.getRoom(parseInt(data.roomId));
@@ -166,7 +191,7 @@ wss.on("connection", (ws: WebSocket) => {
                   kind,
                   rtpParameters,
                });
-               room.producers.set(ws, producer);
+               room.producers.set(producer.id, producer);
                console.log("Producer created successfully");
                ws.send(
                   JSON.stringify({
@@ -176,6 +201,7 @@ wss.on("connection", (ws: WebSocket) => {
                );
 
                room.users.forEach((user, socket) => {
+                  console.log("Sending new producer notification to all users in the room");
                   if (socket !== ws) {
                      socket.send(
                         JSON.stringify({
@@ -189,6 +215,58 @@ wss.on("connection", (ws: WebSocket) => {
             } catch (error) {
                console.error("Error producing:", error);
             }
+            break;
+
+         case CONSUME:
+         
+            room = roomManager.getRoom(parseInt(data.roomId));
+            if (!room) {
+               console.error("Room not found for consumer request");
+               return;
+            }
+            const cTransport = room.consumerTransports.get(ws);
+            if (!cTransport) {
+               console.error("Consumer transport not found for consumer request");
+               return;
+            }
+         
+            const producer = room.producers.get(data.producerId);
+            if (!producer) {
+               console.log("Producer not found for consumer request");
+               return;
+            }
+            if(!room.router?.canConsume({producerId:producer.id,rtpCapabilities:data.rtpCapabilities})){
+               console.error("Cannot consume from this producer with the given RTP capabilities");
+               ws.send(
+                  JSON.stringify({
+                     type: "error",
+                     message: "Cannot consume from this producer with the given RTP capabilities",
+                  }),
+               );
+               return;
+            }
+            try {
+               console.log("Consuming producer:", producer.id);
+               const consumer = await cTransport.consume({
+                  producerId: producer.id,
+                  rtpCapabilities: data.rtpCapabilities,
+                  paused:false,
+               });
+               console.log("Consumer created successfully");
+               ws.send(
+                  JSON.stringify({
+                     type: CONSUMED,
+                     consumerId: consumer.id,
+                     producerId: producer.id,
+                     kind: consumer.kind,
+                     rtpParameters: consumer.rtpParameters,
+                  }),
+               );
+            } catch (error) {
+               console.error("Error consuming:", error);
+            }
+            break;
+
       }
    });
 });

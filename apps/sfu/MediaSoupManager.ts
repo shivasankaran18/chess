@@ -22,6 +22,7 @@ export const createRouter = async () => {
             mimeType: "video/VP8",
             clockRate: 90000,
             parameters: {},
+            channels: 2
          },
       ],
    });
