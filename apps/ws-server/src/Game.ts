@@ -45,9 +45,10 @@ export class Game {
          (this.board.turn() === "w" && user === this.player1) ||
          (this.board.turn() === "b" && user === this.player2)
       ) {
-         if (this.board.move(move)) {
+         try {
+            const result=this.board.move(move);
 
-            this.moves=[...this.moves,{from:move.from,to:move.to, player:user.user.name,timestamp: new Date()}];
+            this.moves=[...this.moves,{san:result.san, player:user.user.name,timestamp: new Date()}];
             if (this.board.isGameOver()) {
                const winner =
                   this.board.turn() === "w" ? this.player2 : this.player1;
@@ -55,8 +56,7 @@ export class Game {
                   this.board.turn() === "w" ? this.player1 : this.player2;
                redisManager.addMove(
                   this.id,
-                  move.from,
-                  move.to,
+                  result.san,
                   user.user.id,
                   this.board.fen(),
                )
@@ -67,6 +67,7 @@ export class Game {
                )
                if(winner===this.player1){
                   redisManager.updateRating(
+                     this.id,
                      this.player1.user.id,
                      this.player2.user.id
                   )
@@ -75,6 +76,7 @@ export class Game {
                else
                {
                   redisManager.updateRating(
+                     this.id,
                      this.player2.user.id,
                      this.player1.user.id
                   )
@@ -98,8 +100,7 @@ export class Game {
             } else {
                redisManager.addMove(
                   this.id,
-                  move.from,
-                  move.to,
+                  result.san, 
                   user.user.id,
                   this.board.fen(),
                );
@@ -119,7 +120,7 @@ export class Game {
                   }),
                );
             }
-         } else {
+         } catch(error) {
             console.log(`Invalid move by ${user.user.name} in game ${this.id}`);
             user.socket.send(JSON.stringify({ type: INVALID_MOVE }));
          }

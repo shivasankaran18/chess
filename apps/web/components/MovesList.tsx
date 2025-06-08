@@ -38,8 +38,7 @@ export default function MovesList({moves}:{moves: Moves}) {
                <thead>
                   <tr className="text-gray-400 text-sm">
                      <th className="px-2">#</th>
-                     <th className="px-2">From</th>
-                     <th className="px-2">To</th>
+                     <th className="px-2">SAN</th>
                      <th className="px-2">Player</th>
                   </tr>
                </thead>
@@ -59,11 +58,9 @@ export default function MovesList({moves}:{moves: Moves}) {
                            {index % 2 === 1 ? ".." : ""}
                         </td>
                         <td className="px-2 py-1 font-mono text-white">
-                           {move.from || "-"}
+                           {move.san || "-"}
                         </td>
-                        <td className="px-2 py-1 font-mono text-white">
-                           {move.to}
-                        </td>
+                       
                         <td
                            className={`px-2 py-1 text-xs ${move.player === "Player 1" ? "text-blue-400" : "text-orange-400"}`}
                         >

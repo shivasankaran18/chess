@@ -25,19 +25,21 @@ model User {
 }
 
 model Game {
-   id            Int         @id @default(autoincrement())
-   whitePlayerId Int
-   blackPlayerId Int?
-   whitePlayer   User        @relation("GamesAsWhite", fields: [whitePlayerId], references: [id])
-   blackPlayer   User?       @relation("GamesAsBlack", fields: [blackPlayerId], references: [id])
-   status        GameStatus
-   winPlayerId   Int?
-   startingFen   String      @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-   currentFen    String?
-   startAt       DateTime    @default(now())
-   endAt         DateTime?
-   moves         Move[]
-   resultPlayer  User?       @relation("ResultPlayer", fields: [winPlayerId], references: [id])
+   id                      Int        @id @default(autoincrement())
+   whitePlayerId           Int
+   blackPlayerId           Int?
+   whitePlayer             User       @relation("GamesAsWhite", fields: [whitePlayerId], references: [id])
+   blackPlayer             User?      @relation("GamesAsBlack", fields: [blackPlayerId], references: [id])
+   status                  GameStatus
+   winPlayerId             Int?
+   startingFen             String     @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+   currentFen              String?
+   startAt                 DateTime   @default(now())
+   endAt                   DateTime?
+   whitePlayerRatingChange Int?       @default(0)
+   blackPlayerRatingChange Int?       @default(0)
+   moves                   Move[]
+   resultPlayer            User?      @relation("ResultPlayer", fields: [winPlayerId], references: [id])
 
    @@index([id])
 }
@@ -47,8 +49,7 @@ model Move {
    gameId     Int
    game       Game     @relation(fields: [gameId], references: [id])
    moveNumber Int
-   from       String
-   to         String
+   san        String
    comments   String?
    timeTaken  Int?     @default(0)
    createdAt  DateTime @default(now())
@@ -70,8 +71,6 @@ enum GameResult {
    BLACK_WINS
    DRAW
 }
-
-
 
 enum AuthProvider {
    GOOGLE

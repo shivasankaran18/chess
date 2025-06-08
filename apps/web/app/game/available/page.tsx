@@ -16,35 +16,7 @@ type GamePlayer = {
       avatarUrl: string | null;
    };
 };
-const dummyGames: GamePlayer[] = [
-   {
-      id: 1,
-      whitePlayer: {
-         name: "Magnus Carlsen",
-         rating: 2831,
-         avatarUrl:
-            "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1",
-      },
-   },
-   {
-      id: 2,
-      whitePlayer: {
-         name: "Hikaru Nakamura",
-         rating: 2736,
-         avatarUrl:
-            "https://lh3.googleusercontent.com/a/ACg8ocJgWHz6SyDzJGTLKFShTSfpxPH560XnUi6IITrCNWREHU2TGg=s96-c",
-      },
-   },
-   {
-      id: 3,
-      whitePlayer: {
-         name: "Fabiano Caruana",
-         rating: 2783,
-         avatarUrl:
-            "https://lh3.googleusercontent.com/a/ACg8ocJgWHz6SyDzJGTLKFShTSfpxPH560XnUi6IITrCNWREHU2TGg=s96-c",
-      },
-   },
-];
+
 export default function AvailableGamesPage() {
    const router = useRouter();
    const [games, setGames] = useState<GamePlayer[]>([]);

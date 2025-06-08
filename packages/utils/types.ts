@@ -13,8 +13,7 @@ export type session = {
 
 export type Moves={
    player:string,
-   from:string,
-   to:string
+   san: string,
    timestamp:Date   
 }[]
 

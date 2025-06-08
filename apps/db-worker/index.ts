@@ -22,17 +22,15 @@ async function main() {
             );
             await redisManager.joinGame(gameId, userId, currentFen);
          } else if (data.type === ADD_MOVE) {
-            const { gameId, from, to, playerId, currentFen } = data;
-            console.log(
-               `Player ${playerId} made a move in game ${gameId}: ${from} to ${to}`,
-            );
-            await redisManager.addMove(gameId, from, to, playerId, currentFen);
+            const { gameId, san, playerId, currentFen } = data;
+
+            await redisManager.addMove(gameId, san, playerId, currentFen);
          } else if (data.type === END_GAME) {
             const { gameId, status, winnerId = null } = data;
             await redisManager.endGame(gameId, status, winnerId);
          } else if (data.type === UPDATE_RATING) {
-            const { winnerId, loserId } = data;
-            redisManager.updateRating(winnerId, loserId);
+            const { gameId,winnerId, loserId } = data;
+            redisManager.updateRating(gameId,winnerId, loserId);
          }
       }
    } catch (error) {

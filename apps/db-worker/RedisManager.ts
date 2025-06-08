@@ -1,6 +1,6 @@
-import { prisma } from "db";
 import { createClient, RedisClientType } from "redis";
 import { calculateElo } from "./elo";
+import { prisma } from "db";
 
 export class RedisManager {
    public client: RedisClientType;
@@ -34,24 +34,32 @@ export class RedisManager {
 
    public async addMove(
       gameId: number,
-      from: string,
-      to: string,
+      san: string,
       playerId: number,
       currentFen: string,
    ) {
       try {
-         const lastMove = await prisma.move.findFirst({
-            where: { gameId },
-            orderBy: { createdAt: "desc" },
-         });
-         await prisma.move.create({
-            data: {
-               gameId,
-               moveNumber: lastMove ? lastMove.moveNumber + 1 : 1,
-               from,
-               to,
-               playerId,
-            },
+         await prisma.$transaction(async (tx) => {
+            const lastMove = await tx.move.findFirst({
+               where: { gameId },
+               orderBy: { createdAt: "desc" },
+            });
+            await tx.move.create({
+               data: {
+                  gameId,
+                  moveNumber: lastMove ? lastMove.moveNumber + 1 : 1,
+                  san,
+                  playerId,
+               },
+            });
+            await tx.game.update({
+               where: {
+                  id: gameId,
+               },
+               data: {
+                  currentFen,
+               },
+            });
          });
       } catch (error) {
          console.error("Error adding move:", error);
@@ -70,7 +78,7 @@ export class RedisManager {
          console.error("Error ending game:", error);
       }
    }
-   public async updateRating(winnerId: number, loserId: number) {
+   public async updateRating(gameId:number,winnerId: number, loserId: number) {
       try {
          const winner = await prisma.user.findUnique({
             where: { id: winnerId },
@@ -91,6 +99,15 @@ export class RedisManager {
             32,
          );
 
+         let changeA=newRa- winner.rating;
+         let changeB=newRb-loser.rating;
+         const game= await prisma.game.findUnique({
+            where: { id: gameId },
+         })
+         if(game==null)
+         {
+            return;
+         }
          await prisma.$transaction(async (tx) => {
             await tx.user.update({
                where: { id: winnerId },
@@ -101,6 +118,26 @@ export class RedisManager {
                where: { id: loserId },
                data: { rating: newRb },
             });
+            if(winner.id===game.whitePlayerId){
+               await tx.game.update({
+                  where: { id: gameId },
+                  data: {
+                     whitePlayerRatingChange: changeA,
+                     blackPlayerRatingChange: changeB,
+                  },
+               });
+            }
+            else
+            {
+               await tx.game.update({
+                  where: { id: gameId },
+                  data: {
+                     whitePlayerRatingChange: changeB,
+                     blackPlayerRatingChange: changeA,
+                  },
+               });
+            }
+            
          });
       } catch (error) {
          console.error("Error updating rating:", error);

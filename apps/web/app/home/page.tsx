@@ -42,17 +42,14 @@ export default function Dashboard() {
                animate={{ opacity: 1, y: 0 }}
                transition={{ duration: 0.5 }}
             >
-               {/* Play Now Section */}
                <div className="w-full">
                   <PlayNowSection />
                </div>
 
-               {/* Leaderboard Section */}
                <div className="w-full">
                   <LeaderboardCard />
                </div>
 
-               {/* User Stats Section */}
                <div className="w-full">
                   <UserStatsCard username={"Guest"} />
                </div>

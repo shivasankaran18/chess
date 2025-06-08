@@ -36,8 +36,7 @@ export class RedisManager {
 
    public async addMove(
       gameId: number,
-      from: string,
-      to: string,
+      san: string,
       playerId: number,
       currentFen: string,
    ) {
@@ -47,8 +46,7 @@ export class RedisManager {
             JSON.stringify({
                type: ADD_MOVE,
                gameId,
-               from,
-               to,
+               san, 
                playerId,
                currentFen,
             }),
@@ -85,12 +83,13 @@ export class RedisManager {
       }
    }
 
-   public async updateRating(winnerId: number, loserId: number) {
+   public async updateRating(gameId:number,winnerId: number, loserId: number) {
       try {
          this.client.rPush(
             "game",
             JSON.stringify({
                type: UPDATE_RATING,
+               gameId,
                winnerId,
                loserId,
             }),
