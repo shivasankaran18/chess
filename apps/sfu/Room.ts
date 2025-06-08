@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import { createRouter } from "./MediaSoupManager";
 import { User } from "./User";
 import * as mediasoup from "mediasoup";
+import { session } from "utils/types";
 
 export class Room {
    public id: number;
@@ -25,7 +26,7 @@ export class Room {
    private async setup() {
       this.router = await createRouter();
    }
-   public addUser(socket: WebSocket, user: any): User {
+   public addUser(socket: WebSocket, user: session): User {
       const newUser = new User(socket, user);
       this.users.set(socket, newUser);
       return newUser;

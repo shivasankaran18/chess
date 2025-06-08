@@ -17,8 +17,9 @@ model User {
    gamesAsWhite Game[]       @relation("GamesAsWhite")
    gamesAsBlack Game[]       @relation("GamesAsBlack")
    createdAt    DateTime     @default(now())
-   lastLogin    DateTime?
    avatarUrl    String?
+   moves        Move[]
+   games        Game[]       @relation("ResultPlayer")
 
    @@index([rating])
 }
@@ -30,17 +31,15 @@ model Game {
    whitePlayer   User        @relation("GamesAsWhite", fields: [whitePlayerId], references: [id])
    blackPlayer   User?       @relation("GamesAsBlack", fields: [blackPlayerId], references: [id])
    status        GameStatus
-   result        GameResult?
-   timeControl   TimeControl
+   winPlayerId   Int?
    startingFen   String      @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
    currentFen    String?
    startAt       DateTime    @default(now())
    endAt         DateTime?
    moves         Move[]
-   opening       String?
-   event         String?
+   resultPlayer  User?       @relation("ResultPlayer", fields: [winPlayerId], references: [id])
 
-   @@index([status, result])
+   @@index([id])
 }
 
 model Move {
@@ -51,11 +50,10 @@ model Move {
    from       String
    to         String
    comments   String?
-   before     String
-   after      String
    timeTaken  Int?     @default(0)
    createdAt  DateTime @default(now())
-   san        String?
+   playerId   Int
+   player     User     @relation(fields: [playerId], references: [id])
 
    @@index([gameId])
 }
@@ -64,8 +62,6 @@ enum GameStatus {
    WAITING_FOR_PLAYER
    IN_PROGRESS
    COMPLETED
-   ABANDONED
-   TIME_UP
    PLAYER_EXIT
 }
 
@@ -75,12 +71,7 @@ enum GameResult {
    DRAW
 }
 
-enum TimeControl {
-   CLASSICAL
-   RAPID
-   BLITZ
-   BULLET
-}
+
 
 enum AuthProvider {
    GOOGLE

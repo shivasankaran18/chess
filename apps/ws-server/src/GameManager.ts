@@ -3,9 +3,9 @@ import { Game } from "./Game";
 import { User } from "./User";
 import { move } from "utils/types";
 import { prisma } from "db";
+import { RedisManager } from "./RedisManager";
 
-let temp=0;
-
+const redisManager=RedisManager.getInstance();
 
 export class GameManager {
    private ongoingGames: Map<number, Game>;
@@ -25,14 +25,14 @@ export class GameManager {
    }
 
    public async createGame(player1: User) {
-      // const g = await prisma.game.create({
-      //    data: {
-      //       whitePlayerId: player1.user.id,
-      //       status: "WAITING_FOR_PLAYER",
-      //       timeControl: "CLASSICAL",
-      //    },
-      // });
-      const game = new Game(++temp, player1);
+      const g = await prisma.game.create({
+         data:{
+            whitePlayerId: player1.user.id,
+            status:"WAITING_FOR_PLAYER",
+
+         }
+      })
+      const game = new Game(g.id, player1);
       this.pendingGames.set(game.id, game);
       player1.socket.send(JSON.stringify({ type: GAME_CREATED }));
    }
@@ -42,6 +42,7 @@ export class GameManager {
          return;
       }
       game.player2 = player2;
+      redisManager.joinGame(game.id, game.player1.user.id, game.board.fen());
       this.pendingGames.delete(gameId);
       this.ongoingGames.set(gameId, game);
       game.player1.socket.send(

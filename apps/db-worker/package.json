@@ -1,9 +1,10 @@
 {
-  "name": "ws-server",
+  "name": "db-worker",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/index.ts"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start":"nodemon --exec ts-node index.ts"
   },
   "keywords": [],
   "author": "",
@@ -11,11 +12,8 @@
   "type": "commonjs",
   "description": "",
   "dependencies": {
-    "@types/ws": "^8.18.1",
-    "chess.js": "^1.2.0",
-    "db": "*",
     "redis": "^5.5.6",
-    "utils": "*",
-    "ws": "^8.18.2"
+    "db":"*",
+    "utils": "*"
   }
 }

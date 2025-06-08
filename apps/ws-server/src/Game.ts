@@ -10,13 +10,16 @@ import {
    GAME_OVER,
    GAME_MSG,
 } from "utils/constants";
+import { RedisManager } from "./RedisManager";
+
+const redisManager=RedisManager.getInstance();
 
 export class Game {
    public id: number;
    public player1: User;
    public player2: User | null;
-   private board: Chess;
-   private startTIme: Date;
+   public board: Chess;
+   private startTime: Date;
    private moves:Moves
    private messages: Message[];
 
@@ -26,7 +29,7 @@ export class Game {
       this.player1 = player1;
       this.player2 = player2 ?? null;
       this.board = new Chess();
-      this.startTIme = new Date();
+      this.startTime = new Date();
       this.moves = [];
       this.messages = [];
    }
@@ -50,6 +53,18 @@ export class Game {
                   this.board.turn() === "w" ? this.player2 : this.player1;
                const loser =
                   this.board.turn() === "w" ? this.player1 : this.player2;
+               redisManager.addMove(
+                  this.id,
+                  move.from,
+                  move.to,
+                  user.user.id,
+                  this.board.fen(),
+               )
+               redisManager.endGame(
+                  this.id,
+                  "COMPLETED",
+                  winner.user.id,
+               )
 
                winner?.socket.send(
                   JSON.stringify({
@@ -66,6 +81,13 @@ export class Game {
                   }),
                );
             } else {
+               redisManager.addMove(
+                  this.id,
+                  move.from,
+                  move.to,
+                  user.user.id,
+                  this.board.fen(),
+               );
                
                this.player1.socket.send(
                   JSON.stringify({

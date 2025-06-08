@@ -1,7 +1,6 @@
 import { WebSocketServer } from "ws";
 import type { WebSocket } from "ws";
 import { User } from "./User";
-import { UserManager } from "./UserManager";
 import { RoomManager } from "./RoomManager";
 import {
    CONNECT_PRODUCER_TRANSPORT,
@@ -30,7 +29,6 @@ import {
 import { Room } from "./Room";
 
 const wss = new WebSocketServer({ port: 8000 });
-const userManager = UserManager.getInstance();
 const roomManager = RoomManager.getInstance();
 
 wss.on("connection", (ws: WebSocket) => {
@@ -42,12 +40,10 @@ wss.on("connection", (ws: WebSocket) => {
 
       switch (msg) {
          case INIT_SFU:
-            user = userManager.addUser(ws, data.user);
             if (!roomManager.rooms.has(parseInt(data.roomId))) {
-               const room = roomManager.createRoom(data.roomId);
-               room.users.set(ws, user);
+               const room = roomManager.createRoom(parseInt(data.roomId),data.user,ws);
             } else {
-               roomManager.getRoom(data.roomId)?.users.set(ws, user);
+               roomManager.joinRoom(parseInt(data.roomId), data.user, ws);
             }
             ws.send(
                JSON.stringify({ type: "SFU initialized", roomId: data.roomId }),

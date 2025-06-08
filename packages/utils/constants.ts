@@ -31,3 +31,8 @@ export const CONNECT_CONSUMER_TRANSPORT = 'connect_consumer_transport';
 export const CONSUMER_TRANSPORT_CONNECTED = 'consumer_transport_connected';
 export const CONSUME = 'consume';
 export const CONSUMED = 'consumed';
+
+
+export const JOIN_GAME = 'join_game';
+export const ADD_MOVE = 'add_move';
+export const END_GAME = 'end_game';
