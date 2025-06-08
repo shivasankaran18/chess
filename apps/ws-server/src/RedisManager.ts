@@ -1,5 +1,5 @@
 import { createClient, RedisClientType } from "redis";
-import { ADD_MOVE, END_GAME, JOIN_GAME } from "utils/constants";
+import { ADD_MOVE, END_GAME, JOIN_GAME, UPDATE_RATING } from "utils/constants";
 
 export class RedisManager {
    private client: RedisClientType;
@@ -17,7 +17,7 @@ export class RedisManager {
       return this.redisManagerInstance;
    }
 
-   public async joinGame(gameId: number, userId: number,currentFen: string) {
+   public async joinGame(gameId: number, userId: number, currentFen: string) {
       try {
          await this.client.rPush(
             "game",
@@ -26,7 +26,7 @@ export class RedisManager {
                gameId,
                userId,
                currentFen,
-               status:"IN_PROGRESS"
+               status: "IN_PROGRESS",
             }),
          );
       } catch (error) {
@@ -39,48 +39,64 @@ export class RedisManager {
       from: string,
       to: string,
       playerId: number,
-      currentFen: string
+      currentFen: string,
    ) {
-      try{
-         await this.client.rPush('game', JSON.stringify({
-            type: ADD_MOVE,
-            gameId,
-            from,
-            to,
-            playerId,
-            currentFen
-         }));
-
+      try {
+         await this.client.rPush(
+            "game",
+            JSON.stringify({
+               type: ADD_MOVE,
+               gameId,
+               from,
+               to,
+               playerId,
+               currentFen,
+            }),
+         );
       } catch (error) {
          console.error("Error adding move:", error);
       }
-
    }
 
-   public async endGame(gameId: number,status:string,winnerId?:number) {
-      try{
-         if(status==='COMPLETED')
-         {
-            await this.client.rPush('game', JSON.stringify({
-               type: END_GAME,
-               gameId,
-               status,
-               winnerId
-            }));
+   public async endGame(gameId: number, status: string, winnerId?: number) {
+      try {
+         if (status === "COMPLETED") {
+            await this.client.rPush(
+               "game",
+               JSON.stringify({
+                  type: END_GAME,
+                  gameId,
+                  status,
+                  winnerId,
+               }),
+            );
+         } else {
+            await this.client.rPush(
+               "game",
+               JSON.stringify({
+                  type: END_GAME,
+                  gameId,
+                  status,
+               }),
+            );
          }
-         else
-         {
-            await this.client.rPush('game', JSON.stringify({
-               type: END_GAME,
-               gameId,
-               status
-            }));
-         }
-
-      }
-      catch (error) {
+      } catch (error) {
          console.error("Error ending game:", error);
       }
+   }
 
+   public async updateRating(winnerId: number, loserId: number) {
+      try {
+         this.client.rPush(
+            "game",
+            JSON.stringify({
+               type: UPDATE_RATING,
+               winnerId,
+               loserId,
+            }),
+         );
+      } catch (error) {
+         console.error("Error updating rating:", error);
+      }
    }
 }

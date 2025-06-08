@@ -36,3 +36,4 @@ export const CONSUMED = 'consumed';
 export const JOIN_GAME = 'join_game';
 export const ADD_MOVE = 'add_move';
 export const END_GAME = 'end_game';
+export const UPDATE_RATING = 'update_rating';

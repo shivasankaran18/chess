@@ -65,6 +65,21 @@ export class Game {
                   "COMPLETED",
                   winner.user.id,
                )
+               if(winner===this.player1){
+                  redisManager.updateRating(
+                     this.player1.user.id,
+                     this.player2.user.id
+                  )
+
+               }
+               else
+               {
+                  redisManager.updateRating(
+                     this.player2.user.id,
+                     this.player1.user.id
+                  )
+
+               }
 
                winner?.socket.send(
                   JSON.stringify({

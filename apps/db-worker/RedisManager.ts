@@ -1,5 +1,6 @@
 import { prisma } from "db";
 import { createClient, RedisClientType } from "redis";
+import { calculateElo } from "./elo";
 
 export class RedisManager {
    public client: RedisClientType;
@@ -61,12 +62,48 @@ export class RedisManager {
          await prisma.game.update({
             where: { id: gameId },
             data: {
-               status:status as "COMPLETED" | "PLAYER_EXIT",
+               status: status as "COMPLETED" | "PLAYER_EXIT",
                winPlayerId: winnerId ?? null,
             },
          });
       } catch (error) {
          console.error("Error ending game:", error);
+      }
+   }
+   public async updateRating(winnerId: number, loserId: number) {
+      try {
+         const winner = await prisma.user.findUnique({
+            where: { id: winnerId },
+         });
+         const loser = await prisma.user.findUnique({
+            where: { id: loserId },
+         });
+
+         if (!winner || !loser) {
+            return;
+         }
+
+         const { newRa, newRb } = calculateElo(
+            winner?.rating,
+            loser?.rating,
+            1,
+            0,
+            32,
+         );
+
+         await prisma.$transaction(async (tx) => {
+            await tx.user.update({
+               where: { id: winnerId },
+               data: { rating: newRa },
+            });
+
+            await tx.user.update({
+               where: { id: loserId },
+               data: { rating: newRb },
+            });
+         });
+      } catch (error) {
+         console.error("Error updating rating:", error);
       }
    }
 }

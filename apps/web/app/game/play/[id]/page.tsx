@@ -485,3 +485,4 @@ export default function GamePage() {
       </motion.div>
    );
 }
+
