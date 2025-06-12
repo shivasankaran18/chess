@@ -11,3 +11,6 @@ tavily-python
 langgraph-checkpoint-sqlite
 faiss-cpu
 langchain-google-genai
+prisma
+fastapi[standard]
+redis
