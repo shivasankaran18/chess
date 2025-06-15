@@ -7,6 +7,11 @@ import {
    CREATE_CONSUMER_TRANSPORT,
    CONNECT_CONSUMER_TRANSPORT,
    CONSUME,
+   PRODUCE_VIDEO,
+   CONSUME_VIDEO,
+   PRODUCER_PAUSED_AUDIO,
+   PRODUCE_AUDIO,
+   CONSUME_AUDIO,
 } from "utils/constants";
 import * as mediasoupClient from "mediasoup-client";
 import { RtpCapabilities } from "mediasoup-client/types";
@@ -101,6 +106,13 @@ export const createSendTransport = async (
    sendTransport: React.MutableRefObject<mediasoupClient.types.Transport | null>,
    id: number,
    localVideo: React.MutableRefObject<HTMLVideoElement | null>,
+   localStreamRef: React.MutableRefObject<MediaStream | null>,
+   videoCallback: React.MutableRefObject<
+      ((data: { id: string }) => void) | null
+   >,
+   audioCallback: React.MutableRefObject<
+      ((data: { id: string }) => void) | null
+   >,
 ) => {
    if (!socket.current || !device.current) {
       console.error("Socket or device is not initialized");
@@ -121,15 +133,34 @@ export const createSendTransport = async (
    });
 
    transport.on("produce", ({ kind, rtpParameters }, callback) => {
-      socket.current?.send(
-         JSON.stringify({ type: PRODUCE, kind, rtpParameters, roomId: id }),
-      );
+      console.log("Producing:", kind, rtpParameters);
+      if (kind === "video") {
+         socket.current?.send(
+            JSON.stringify({
+               type: PRODUCE_VIDEO,
+               kind,
+               rtpParameters,
+               roomId: id,
+            }),
+         );
+         videoCallback.current = callback;
+      } else {
+         socket.current?.send(
+            JSON.stringify({
+               type: PRODUCE_AUDIO,
+               kind,
+               rtpParameters,
+               roomId: id,
+            }),
+         );
+         audioCallback.current = callback;
+      }
    });
 
    transport.on("connectionstatechange", (state) => {
       if (state === "failed") transport.close();
    });
-   await startCamera(localVideo, sendTransport);
+   await startCamera(localVideo, sendTransport, localStreamRef);
 };
 
 export const createReceiveTransport = async (
@@ -140,6 +171,7 @@ export const createReceiveTransport = async (
    id: number,
    remoteVideo: React.MutableRefObject<HTMLVideoElement | null>,
    producerId: string | null,
+   setShowVideoConsumeDialog: React.Dispatch<React.SetStateAction<boolean>>,
 ) => {
    if (!socket.current || !device.current) {
       console.error("Socket or device is not initialized");
@@ -162,7 +194,6 @@ export const createReceiveTransport = async (
    transport.on("connectionstatechange", (state) => {
       if (state === "connected") {
          console.log("Transport connected");
-       
       }
       if (state === "failed") transport.close();
    });
@@ -170,9 +201,10 @@ export const createReceiveTransport = async (
    transport.on("icegatheringstatechange", (state) => {
       console.log("ICE state:", state);
    });
+   setShowVideoConsumeDialog(true);
    // socket.current?.send(
    //    JSON.stringify({
-   //       type: CONSUME,
+   //       type: CONSUME_VIDEO,
    //       rtpCapabilities: device.current.rtpCapabilities,
    //       roomId: id,
    //       producerId: producerId,
@@ -184,19 +216,32 @@ export const consume = (
    device: React.MutableRefObject<mediasoupClient.types.Device | null>,
    id: number,
    producerIdRef: React.MutableRefObject<string | null>,
+   kind: string,
 ) => {
-   socket.current?.send(
-      JSON.stringify({
-         type: CONSUME,
-         rtpCapabilities: device.current?.rtpCapabilities,
-         roomId: id,
-         producerId: producerIdRef.current,
-      }),
-   );
+   if (kind === "audio") {
+      socket.current?.send(
+         JSON.stringify({
+            type: CONSUME_AUDIO,
+            rtpCapabilities: device.current?.rtpCapabilities,
+            roomId: id,
+            producerId: producerIdRef.current,
+         }),
+      );
+   } else {
+      socket.current?.send(
+         JSON.stringify({
+            type: CONSUME_VIDEO,
+            rtpCapabilities: device.current?.rtpCapabilities,
+            roomId: id,
+            producerId: producerIdRef.current,
+         }),
+      );
+   }
 };
 const startCamera = async (
    localVideo: React.MutableRefObject<HTMLVideoElement | null>,
    sendTransport: React.MutableRefObject<mediasoupClient.types.Transport | null>,
+   localStreamRef: React.MutableRefObject<MediaStream | null>,
 ) => {
    if (!localVideo.current || !sendTransport.current) {
       console.error("localVideoRef is null");
@@ -204,9 +249,9 @@ const startCamera = async (
    }
    const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
-      audio: true,
    });
    localVideo.current.srcObject = stream;
+   localStreamRef.current = stream;
 
    const videoTrack = stream.getVideoTracks()[0];
    const producer = await sendTransport.current.produce({

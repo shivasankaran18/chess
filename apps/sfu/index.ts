@@ -6,9 +6,9 @@ import {
    CONNECT_PRODUCER_TRANSPORT,
    CREATE_PRODUCER_TRANSPORT,
    INIT_SFU,
-   NEW_PRODUCER,
-   PRODUCE,
-   PRODUCED,
+   NEW_PRODUCER_VIDEO,
+   PRODUCE_VIDEO,
+   VIDEO_PRODUCED,
    PRODUCER_GET_RTP_CAPABILITIES,
    PRODUCER_TRANSPORT_CONNECTED,
    PRODUCER_TRANSPORT_CREATED,
@@ -19,8 +19,25 @@ import {
    CONSUMER_TRANSPORT_CREATED,
    CONNECT_CONSUMER_TRANSPORT,
    CONSUMER_TRANSPORT_CONNECTED,
-   CONSUME,
-   CONSUMED,
+   CONSUME_VIDEO,
+   VIDEO_CONSUMED,
+   PAUSE_PRODUCER_VIDEO,
+   CONSUMER_PAUSED_VIDEO,
+   PRODUCER_PAUSED_VIDEO,
+   RESUME_PRODUCER_VIDEO,
+   PRODUCER_RESUMED_VIDEO,
+   CONSUMER_RESUMED_VIDEO,
+   PRODUCE_AUDIO,
+   AUDIO_PRODUCED,
+   NEW_PRODUCER_AUDIO,
+   CONSUME_AUDIO,
+   AUDIO_CONSUMED,
+   PAUSE_PRODUCER_AUDIO,
+   PRODUCER_PAUSED_AUDIO,
+   CONSUMER_PAUSED_AUDIO,
+   PRODUCER_RESUMED_AUDIO,
+   CONSUMER_RESUMED_AUDIO,
+   RESUME_PRODUCER_AUDIO,
 } from "utils/constants";
 import {
    createWebRtcTransport,
@@ -37,11 +54,16 @@ wss.on("connection", (ws: WebSocket) => {
       const msg = data.type;
       let user: User | undefined;
       let room: Room | undefined;
+      console.log("Received message:", data);
 
       switch (msg) {
          case INIT_SFU:
             if (!roomManager.rooms.has(parseInt(data.roomId))) {
-               const room = roomManager.createRoom(parseInt(data.roomId),data.user,ws);
+               const room = roomManager.createRoom(
+                  parseInt(data.roomId),
+                  data.user,
+                  ws,
+               );
             } else {
                roomManager.joinRoom(parseInt(data.roomId), data.user, ws);
             }
@@ -172,7 +194,7 @@ wss.on("connection", (ws: WebSocket) => {
             }
             break;
 
-         case PRODUCE:
+         case PRODUCE_VIDEO:
             const { kind, rtpParameters } = data;
             room = roomManager.getRoom(parseInt(data.roomId));
             if (!room) {
@@ -187,21 +209,23 @@ wss.on("connection", (ws: WebSocket) => {
                   kind,
                   rtpParameters,
                });
-               room.producers.set(producer.id, producer);
+               room.producersVideo.set(ws, producer);
                console.log("Producer created successfully");
                ws.send(
                   JSON.stringify({
-                     type: PRODUCED,
+                     type: VIDEO_PRODUCED,
                      producerId: producer.id,
                   }),
                );
-
+               console.log(room.users.size, "users in the room");
                room.users.forEach((user, socket) => {
-                  console.log("Sending new producer notification to all users in the room");
+                  console.log(
+                     "Sending new producer notification to all users in the room",
+                  );
                   if (socket !== ws) {
                      socket.send(
                         JSON.stringify({
-                           type: NEW_PRODUCER,
+                           type: NEW_PRODUCER_VIDEO,
                            producerId: producer.id,
                            userId: user.user.id,
                         }),
@@ -213,8 +237,7 @@ wss.on("connection", (ws: WebSocket) => {
             }
             break;
 
-         case CONSUME:
-         
+         case CONSUME_VIDEO:
             room = roomManager.getRoom(parseInt(data.roomId));
             if (!room) {
                console.error("Room not found for consumer request");
@@ -222,21 +245,37 @@ wss.on("connection", (ws: WebSocket) => {
             }
             const cTransport = room.consumerTransports.get(ws);
             if (!cTransport) {
-               console.error("Consumer transport not found for consumer request");
+               console.error(
+                  "Consumer transport not found for consumer request",
+               );
                return;
             }
-         
-            const producer = room.producers.get(data.producerId);
+            let producer;
+            for (const [socket, p] of room.producersVideo.entries()) {
+               if (socket !== ws) {
+                  producer = p;
+                  break;
+               }
+            }
+
             if (!producer) {
                console.log("Producer not found for consumer request");
                return;
             }
-            if(!room.router?.canConsume({producerId:producer.id,rtpCapabilities:data.rtpCapabilities})){
-               console.error("Cannot consume from this producer with the given RTP capabilities");
+            if (
+               !room.router?.canConsume({
+                  producerId: producer.id,
+                  rtpCapabilities: data.rtpCapabilities,
+               })
+            ) {
+               console.error(
+                  "Cannot consume from this producer with the given RTP capabilities",
+               );
                ws.send(
                   JSON.stringify({
                      type: "error",
-                     message: "Cannot consume from this producer with the given RTP capabilities",
+                     message:
+                        "Cannot consume from this producer with the given RTP capabilities",
                   }),
                );
                return;
@@ -246,12 +285,13 @@ wss.on("connection", (ws: WebSocket) => {
                const consumer = await cTransport.consume({
                   producerId: producer.id,
                   rtpCapabilities: data.rtpCapabilities,
-                  paused:false,
+                  paused: false,
                });
+               room.consumersVideo.set(ws, consumer);
                console.log("Consumer created successfully");
                ws.send(
                   JSON.stringify({
-                     type: CONSUMED,
+                     type: VIDEO_CONSUMED,
                      consumerId: consumer.id,
                      producerId: producer.id,
                      kind: consumer.kind,
@@ -263,6 +303,246 @@ wss.on("connection", (ws: WebSocket) => {
             }
             break;
 
+         case PAUSE_PRODUCER_VIDEO:
+            room = roomManager.getRoom(parseInt(data.roomId));
+            if (!room) {
+               console.error("Room not found for pause request");
+               return;
+            }
+            room.producersVideo.forEach((producer, socket) => {
+               if (socket === ws) {
+                  producer.pause();
+                  console.log("Producer paused successfully");
+                  socket.send(
+                     JSON.stringify({
+                        type: PRODUCER_PAUSED_VIDEO,
+                        producerId: producer.id,
+                     }),
+                  );
+               }
+            });
+            room.users.forEach((user, socket) => {
+               if (socket !== ws) {
+                  socket.send(
+                     JSON.stringify({
+                        type: CONSUMER_PAUSED_VIDEO,
+                        producerId: data.producerId,
+                        userId: user.user.id,
+                     }),
+                  );
+               }
+            });
+            break;
+
+         case RESUME_PRODUCER_VIDEO:
+            room = roomManager.getRoom(parseInt(data.roomId));
+            if (!room) {
+               console.error("Room not found for resume request");
+               return;
+            }
+            room.producersVideo.forEach((producer, socket) => {
+               if (socket === ws) {
+                  producer.resume();
+                  console.log("Producer resumed successfully");
+                  socket.send(
+                     JSON.stringify({
+                        type: PRODUCER_RESUMED_VIDEO,
+                        producerId: producer.id,
+                     }),
+                  );
+               }
+            });
+            room.users.forEach((user, socket) => {
+               if (socket !== ws) {
+                  socket.send(
+                     JSON.stringify({
+                        type: CONSUMER_RESUMED_VIDEO,
+                        producerId: data.producerId,
+                        userId: user.user.id,
+                     }),
+                  );
+               }
+            });
+            break;
+         case PRODUCE_AUDIO:
+            room = roomManager.getRoom(parseInt(data.roomId));
+            if (!room) {
+               console.error("Room not found for audio production");
+               return;
+            }
+            const audioProducerTrans = room.prouducerTransports.get(ws);
+            if (audioProducerTrans == null) {
+               console.error(
+                  "Producer transport not found for audio production",
+               );
+               return;
+            }
+            try {
+               const audioProducer = await audioProducerTrans.produce({
+                  kind: "audio",
+                  rtpParameters: data.rtpParameters,
+               });
+               room.producersAudio.set(ws, audioProducer);
+               console.log("Audio producer created successfully");
+               ws.send(
+                  JSON.stringify({
+                     type: AUDIO_PRODUCED,
+                     producerId: audioProducer.id,
+                  }),
+               );
+               room.users.forEach((user, socket) => {
+                  if (socket !== ws) {
+                     socket.send(
+                        JSON.stringify({
+                           type: NEW_PRODUCER_AUDIO,
+                           producerId: audioProducer.id,
+                           userId: user.user.id,
+                        }),
+                     );
+                  }
+               });
+            } catch (error) {
+               console.error("Error producing audio:", error);
+            }
+
+         case CONSUME_AUDIO:
+            room= roomManager.getRoom(parseInt(data.roomId));
+            if (!room) {
+               console.error("Room not found for audio consumption");
+               return;
+            }
+            const audioTransport = room.consumerTransports.get(ws);
+            if (!audioTransport) {
+               console.error(
+                  "Consumer transport not found for audio consumption",
+               );
+               return;
+            }
+            let audioProducer;
+            for (const [socket, p] of room.producersAudio.entries()) {
+               if (socket !== ws) {
+                  audioProducer = p;
+                  break;
+               }
+            }
+            if (!audioProducer) {
+               console.log("Audio producer not found for consumer request");
+               return;
+            }
+            if (
+               !room.router?.canConsume({
+                  producerId: audioProducer.id,
+                  rtpCapabilities: data.rtpCapabilities,
+               })
+            ) {
+               console.error(
+                  "Cannot consume from this audio producer with the given RTP capabilities",
+               );
+               ws.send(
+                  JSON.stringify({
+                     type: "error",
+                     message:
+                        "Cannot consume from this audio producer with the given RTP capabilities",
+                  }),
+               );
+               return;
+            }
+            try {
+               console.log("Consuming audio producer:", audioProducer.id);
+               const audioConsumer = await audioTransport.consume({
+                  producerId: audioProducer.id,
+                  rtpCapabilities: data.rtpCapabilities,
+                  paused: false,
+               });
+               room.consumersAudio.set(ws, audioConsumer);
+               console.log("Audio consumer created successfully");
+               ws.send(
+                  JSON.stringify({
+                     type: AUDIO_CONSUMED,
+                     consumerId: audioConsumer.id,
+                     producerId: audioProducer.id,
+                     kind: audioConsumer.kind,
+                     rtpParameters: audioConsumer.rtpParameters,
+                  }),
+               );
+            } catch (error) {
+               console.error("Error consuming audio:", error);
+            }
+            break;
+         case PAUSE_PRODUCER_AUDIO:
+            room = roomManager.getRoom(parseInt(data.roomId));
+            if (!room) {
+               console.error("Room not found for audio pause request");
+               return;
+            }
+            room.producersAudio.forEach((producer, socket) => {
+               if (socket === ws) {
+                  producer.pause();
+                  console.log("Audio producer paused successfully");
+                  socket.send(
+                     JSON.stringify({
+                        type: PRODUCER_PAUSED_AUDIO,
+                        producerId: producer.id,
+                     }),
+                  );
+               }
+            });
+            room.users.forEach((user, socket) => {
+               if (socket !== ws) {
+                  socket.send(
+                     JSON.stringify({
+                        type: CONSUMER_PAUSED_AUDIO,
+                        producerId: data.producerId,
+                        userId: user.user.id,
+                     }),
+                  );
+               }
+            });
+            break;
+         case RESUME_PRODUCER_AUDIO:
+            room = roomManager.getRoom(parseInt(data.roomId));
+            if (!room) {
+               console.error("Room not found for audio resume request");
+               return;
+            }
+            room.producersAudio.forEach((producer, socket) => {
+               if (socket === ws) {
+                  producer.resume();
+                  console.log("Audio producer resumed successfully");
+                  socket.send(
+                     JSON.stringify({
+                        type: PRODUCER_RESUMED_AUDIO,
+                        producerId: producer.id,
+                     }),
+                  );
+               }
+            });
+            room.users.forEach((user, socket) => {
+               if (socket !== ws) {
+                  socket.send(
+                     JSON.stringify({
+                        type: CONSUMER_RESUMED_AUDIO,
+                        producerId: data.producerId,
+                        userId: user.user.id,
+                     }),
+                  );
+               }
+            });
+            break;
+
+         default:
+            console.error("Unknown message type:", msg);
+            ws.send(
+               JSON.stringify({
+                  type: "error",
+                  message: "Unknown message type",
+               }),
+            );
+            break;
       }
    });
 });
+
+
+
+

@@ -42,7 +42,7 @@ export class GameManager {
          return;
       }
       game.player2 = player2;
-      redisManager.joinGame(game.id, game.player1.user.id, game.board.fen());
+      redisManager.joinGame(game.id, game.player2.user.id, game.board.fen());
       this.pendingGames.delete(gameId);
       this.ongoingGames.set(gameId, game);
       game.player1.socket.send(

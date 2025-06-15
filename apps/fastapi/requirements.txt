@@ -14,3 +14,4 @@ langchain-google-genai
 prisma
 fastapi[standard]
 redis
+asyncpg
